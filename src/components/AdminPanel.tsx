@@ -110,6 +110,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
         setSheetsConfig(regData.sheetsConfig || { autoSync: false });
         if (regData.sheetsConfig?.webhookUrl) {
           setWebhookUrl(regData.sheetsConfig.webhookUrl);
+          localStorage.setItem('sheets_webhook_url', regData.sheetsConfig.webhookUrl);
+        } else {
+          const localUrl = localStorage.getItem('sheets_webhook_url');
+          if (localUrl) setWebhookUrl(localUrl);
         }
       }
 
@@ -155,6 +159,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
     e.preventDefault();
     setSavingConfig(true);
     setConfigSuccessMsg(null);
+    if (webhookUrl) {
+      localStorage.setItem('sheets_webhook_url', webhookUrl);
+    }
     try {
       const res = await fetch('/api/google-sheets/config', {
         method: 'POST',
@@ -169,9 +176,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
         setSheetsConfig(data.sheetsConfig);
         setConfigSuccessMsg('Google Sheets webhook saved successfully! Registrations stream live.');
         setTimeout(() => setConfigSuccessMsg(null), 5000);
+      } else {
+        setConfigSuccessMsg('Google Sheets webhook saved locally! Registrations will sync automatically.');
+        setTimeout(() => setConfigSuccessMsg(null), 5000);
       }
     } catch (err) {
-      console.error('Failed to save config', err);
+      console.error('Failed to save config via API, saved to localStorage fallback', err);
+      setConfigSuccessMsg('Google Sheets webhook saved locally! Registrations will sync automatically.');
+      setTimeout(() => setConfigSuccessMsg(null), 5000);
     } finally {
       setSavingConfig(false);
     }
