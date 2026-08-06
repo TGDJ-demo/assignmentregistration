@@ -1,0 +1,6 @@
+{
+  "name": "Event Registration & Slot Booking",
+  "description": "Register for event time slots with live availability tracking (max 10 per slot), tester role selection, admin panel, and Google Sheets export/sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
