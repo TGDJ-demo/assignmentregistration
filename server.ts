@@ -141,66 +141,69 @@ async function startServer() {
 
   // POST Register for an event
   app.post('/api/register', async (req: Request, res: Response) => {
-    const { name, email, testerType, date }: RegistrationRequest = req.body;
+    try {
+      const { name, email, testerType, date }: RegistrationRequest = req.body || {};
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Full name is required.' });
-    }
-    if (!email || !email.includes('@')) {
-      return res.status(400).json({ error: 'A valid email address is required.' });
-    }
-    if (!testerType || !['web', 'mobile'].includes(testerType)) {
-      return res.status(400).json({ error: 'Please select whether you need Web or Mobile access.' });
-    }
-    if (!date) {
-      return res.status(400).json({ error: 'Event date selection is required.' });
-    }
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Full name is required.' });
+      }
+      if (!email || !email.includes('@')) {
+        return res.status(400).json({ error: 'A valid email address is required.' });
+      }
+      if (!testerType || !['web', 'mobile'].includes(testerType)) {
+        return res.status(400).json({ error: 'Please select whether you need Web or Mobile access.' });
+      }
+      if (!date) {
+        return res.status(400).json({ error: 'Event date selection is required.' });
+      }
 
-    const cleanEmail = email.trim().toLowerCase();
+      const cleanEmail = email.trim().toLowerCase();
 
-    // Check if user has already registered with this email address
-    const existing = db.registrations.find(
-      r => r.email.toLowerCase() === cleanEmail
-    );
-    if (existing) {
-      return res.status(400).json({
-        error: `You have already picked a date with this email address (${cleanEmail}). Your reserved pass is for ${existing.date} (${existing.testerType === 'web' ? 'Web Platform' : 'Mobile Apps'}) with Ticket Code ${existing.ticketCode}.`,
-        alreadyRegistered: true,
-        existingRegistration: existing,
-      });
-    }
+      // Check if user has already registered with this email address
+      const existing = db.registrations.find(
+        r => r.email.toLowerCase() === cleanEmail
+      );
+      if (existing) {
+        return res.status(400).json({
+          error: `You have already picked a date with this email address (${cleanEmail}). Your reserved pass is for ${existing.date} (${existing.testerType === 'web' ? 'Web Platform' : 'Mobile Apps'}) with Ticket Code ${existing.ticketCode}.`,
+          alreadyRegistered: true,
+          existingRegistration: existing,
+        });
+      }
 
-    // Check capacity limit for the requested tester type on this date (Max 10 per platform)
-    const bookedCount = db.registrations.filter(
-      r => r.date === date && r.testerType === testerType
-    ).length;
+      // Check capacity limit for the requested tester type on this date (Max 10 per platform)
+      const bookedCount = db.registrations.filter(
+        r => r.date === date && r.testerType === testerType
+      ).length;
 
-    if (bookedCount >= 10) {
-      const platformName = testerType === 'web' ? 'Web Platform' : 'Mobile Apps';
-      return res.status(400).json({
-        error: `${platformName} access for ${date} is fully booked (10/10 slots reserved). Please select another date.`,
-        slotFull: true,
-      });
-    }
+      if (bookedCount >= 10) {
+        const platformName = testerType === 'web' ? 'Web Platform' : 'Mobile Apps';
+        return res.status(400).json({
+          error: `${platformName} access for ${date} is fully booked (10/10 slots reserved). Please select another date.`,
+          slotFull: true,
+        });
+      }
 
-    const ticketCode = `TKT-${Math.floor(1000 + Math.random() * 9000)}-${testerType.toUpperCase()}`;
-    const newReg: Registration = {
-      id: `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      name: name.trim(),
-      email: cleanEmail,
-      testerType,
-      date,
-      createdAt: new Date().toISOString(),
-      ticketCode,
-    };
+      const ticketCode = `TKT-${Math.floor(1000 + Math.random() * 9000)}-${testerType.toUpperCase()}`;
+      const newReg: Registration = {
+        id: `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        name: name.trim(),
+        email: cleanEmail,
+        testerType,
+        date,
+        createdAt: new Date().toISOString(),
+        ticketCode,
+      };
 
-    db.registrations.push(newReg);
-    saveDB(db);
+      db.registrations.push(newReg);
+      saveDB(db);
 
-    // Trigger external Google Sheets webhook if configured
-    if (db.sheetsConfig.webhookUrl) {
-      try {
-        await fetch(db.sheetsConfig.webhookUrl, {
+      // Trigger external Google Sheets webhook if configured (NON-BLOCKING with 4s AbortController timeout)
+      if (db.sheetsConfig.webhookUrl) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+        fetch(db.sheetsConfig.webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -214,19 +217,28 @@ async function startServer() {
             ticketCode: newReg.ticketCode,
             createdAt: newReg.createdAt,
           }),
-        });
-        db.sheetsConfig.lastSyncTime = new Date().toISOString();
-        saveDB(db);
-      } catch (err) {
-        console.error('Google Sheets Webhook Push Error:', err);
+          signal: controller.signal,
+        })
+          .then(() => {
+            clearTimeout(timeoutId);
+            db.sheetsConfig.lastSyncTime = new Date().toISOString();
+            saveDB(db);
+          })
+          .catch(err => {
+            clearTimeout(timeoutId);
+            console.error('Google Sheets Webhook Push Error (non-blocking):', err.message || err);
+          });
       }
-    }
 
-    return res.json({
-      success: true,
-      message: 'Registration successful!',
-      registration: newReg,
-    });
+      return res.json({
+        success: true,
+        message: 'Registration successful!',
+        registration: newReg,
+      });
+    } catch (err: any) {
+      console.error('Error in /api/register:', err);
+      return res.status(500).json({ error: 'Server error processing registration.' });
+    }
   });
 
   // GET Check existing email registration
