@@ -101,7 +101,7 @@ export default function App() {
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> AI QA Best Practices
                   </span>
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> Google Sheets Sync
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Instant Pass Generation
                   </span>
                 </div>
               </div>

@@ -206,6 +206,13 @@ async function startServer() {
           body: JSON.stringify({
             action: 'ADD_ROW',
             data: newReg,
+            id: newReg.id,
+            name: newReg.name,
+            email: newReg.email,
+            testerType: newReg.testerType,
+            date: newReg.date,
+            ticketCode: newReg.ticketCode,
+            createdAt: newReg.createdAt,
           }),
         });
         db.sheetsConfig.lastSyncTime = new Date().toISOString();
@@ -301,33 +308,53 @@ function doPost(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     
+    // Auto-create Header Row if Sheet is empty
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         "Registration ID", 
         "Name", 
         "Email", 
-        "Tester Type", 
-        "Date", 
+        "Platform / Discipline", 
+        "Event Date", 
         "Ticket Code", 
         "Registered At"
       ]);
       sheet.getRange("1:1").setFontWeight("bold").setBackground("#e8f0fe");
     }
 
-    var contents = JSON.parse(e.postData.contents);
-    var data = contents.data;
-
-    if (data) {
-      sheet.appendRow([
-        data.id,
-        data.name,
-        data.email,
-        data.testerType === 'web' ? 'Web Platform' : 'Mobile Apps',
-        data.date,
-        data.ticketCode,
-        data.createdAt
-      ]);
+    // Safely parse post body (handles JSON body or form parameters)
+    var rawData = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        var parsed = JSON.parse(e.postData.contents);
+        rawData = parsed.data || parsed;
+      } catch (err) {
+        rawData = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      rawData = e.parameter;
     }
+
+    // Extract fields with multiple key fallbacks
+    var regId = rawData.id || rawData.ticketCode || "";
+    var name = rawData.name || rawData.fullName || rawData.Name || "";
+    var email = rawData.email || rawData.Email || "";
+    var rawType = rawData.testerType || rawData.discipline || rawData.type || "";
+    var platform = (rawType === 'web' || rawType === 'Web Platform') ? 'Web Platform' : (rawType === 'mobile' || rawType === 'Mobile Apps') ? 'Mobile Apps' : rawType;
+    var eventDate = rawData.date || rawData.eventDate || rawData.Date || "";
+    var ticketCode = rawData.ticketCode || rawData.ticket || "";
+    var createdAt = rawData.createdAt || rawData.timestamp || new Date().toLocaleString();
+
+    // Append new row to spreadsheet
+    sheet.appendRow([
+      regId,
+      name,
+      email,
+      platform,
+      eventDate,
+      ticketCode,
+      createdAt
+    ]);
 
     return ContentService.createTextOutput(JSON.stringify({ "result": "success" }))
       .setMimeType(ContentService.MimeType.JSON);

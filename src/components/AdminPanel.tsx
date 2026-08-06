@@ -2,6 +2,71 @@ import React, { useState, useEffect } from 'react';
 import { Registration, GoogleSheetsConfig, DateAvailability } from '../types';
 import { Download, Search, RefreshCw, Trash2, FileSpreadsheet, CheckCircle2, Copy, ExternalLink, Users, Monitor, Smartphone, Calendar as CalendarIcon } from 'lucide-react';
 
+const DEFAULT_APPS_SCRIPT = `
+// ==========================================
+// GOOGLE SHEETS AUTOMATIC REGISTRATION SYNC
+// ==========================================
+function doPost(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    // Auto-create Header Row if Sheet is empty
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "Registration ID", 
+        "Name", 
+        "Email", 
+        "Platform / Discipline", 
+        "Event Date", 
+        "Ticket Code", 
+        "Registered At"
+      ]);
+      sheet.getRange("1:1").setFontWeight("bold").setBackground("#e8f0fe");
+    }
+
+    // Safely parse post body (handles JSON body or form parameters)
+    var rawData = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        var parsed = JSON.parse(e.postData.contents);
+        rawData = parsed.data || parsed;
+      } catch (err) {
+        rawData = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      rawData = e.parameter;
+    }
+
+    // Extract fields with multiple key fallbacks
+    var regId = rawData.id || rawData.ticketCode || "";
+    var name = rawData.name || rawData.fullName || rawData.Name || "";
+    var email = rawData.email || rawData.Email || "";
+    var rawType = rawData.testerType || rawData.discipline || rawData.type || "";
+    var platform = (rawType === 'web' || rawType === 'Web Platform') ? 'Web Platform' : (rawType === 'mobile' || rawType === 'Mobile Apps') ? 'Mobile Apps' : rawType;
+    var eventDate = rawData.date || rawData.eventDate || rawData.Date || "";
+    var ticketCode = rawData.ticketCode || rawData.ticket || "";
+    var createdAt = rawData.createdAt || rawData.timestamp || new Date().toLocaleString();
+
+    // Append new row to spreadsheet
+    sheet.appendRow([
+      regId,
+      name,
+      email,
+      platform,
+      eventDate,
+      ticketCode,
+      createdAt
+    ]);
+
+    return ContentService.createTextOutput(JSON.stringify({ "result": "success" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "message": err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+`.trim();
+
 interface AdminPanelProps {
   availableDates: string[];
   onRefreshData?: () => void;
@@ -22,7 +87,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
   const [webhookUrl, setWebhookUrl] = useState<string>('');
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
   const [configSuccessMsg, setConfigSuccessMsg] = useState<string | null>(null);
-  const [scriptTemplate, setScriptTemplate] = useState<string>('');
+  const [scriptTemplate, setScriptTemplate] = useState<string>(DEFAULT_APPS_SCRIPT);
   const [showScriptModal, setShowScriptModal] = useState<boolean>(false);
   const [copiedScript, setCopiedScript] = useState<boolean>(false);
 
@@ -194,7 +259,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center space-x-2 bg-zinc-800 px-3 py-1 rounded-full text-xs font-semibold text-blue-300 border border-zinc-700">
               <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
-              <span>Google Sheets Sync</span>
+              <span>Google Sheets Integration</span>
             </div>
             <h3 className="text-xl font-bold">Stream Registrations to Google Sheets</h3>
             <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">

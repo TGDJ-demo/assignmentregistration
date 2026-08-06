@@ -189,7 +189,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             </div>
             <div className="flex items-center gap-2.5 text-xs text-zinc-300">
               <Globe className="w-3.5 h-3.5 text-blue-400" />
-              <span>7 Continents Timezone Sync</span>
+              <span>Global Timezone Support</span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-zinc-300">
               <UserCheck className="w-3.5 h-3.5 text-purple-400" />
