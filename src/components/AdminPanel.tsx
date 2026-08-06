@@ -198,7 +198,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
             </div>
             <h3 className="text-xl font-bold">Stream Registrations to Google Sheets</h3>
             <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-              Registrations automatically sync with live date availability (max 10 seats for Web & 10 for Mobile per date) and stream to Google Sheets.
+              Registrations automatically sync with live date availability and stream directly to Google Sheets in real time.
             </p>
           </div>
 
@@ -256,7 +256,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
       <div className="bg-white border border-zinc-200/80 rounded-[32px] p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div>
-            <h3 className="text-base font-bold text-zinc-900">Per-Date Seats Capacity (10 Web / 10 Mobile)</h3>
+            <h3 className="text-base font-bold text-zinc-900">Per-Date Session Capacity & Registration Overview</h3>
             <p className="text-xs text-zinc-400">
               Live remaining seats streamed from registration log.
             </p>

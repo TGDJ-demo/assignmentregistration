@@ -78,7 +78,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
               {monthNames[month]} {year}
             </h3>
             <span className="text-[10px] text-zinc-400 block font-medium">
-              Full-Day Access • Max 10 Seats Per Discipline
+              Full-Day Access • Select Preferred Date
             </span>
           </div>
         </div>
@@ -169,7 +169,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
         </div>
         <div className="flex items-center space-x-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-zinc-300" />
-          <span>Full (10/10 Booked)</span>
+          <span>Full (Slots Reserved)</span>
         </div>
         <div className="flex items-center space-x-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-zinc-900" />

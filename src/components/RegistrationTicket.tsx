@@ -55,15 +55,15 @@ export const RegistrationTicket: React.FC<RegistrationTicketProps> = ({
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      {/* Success Notification Banner */}
-      <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center space-x-3 text-emerald-800 shadow-sm">
-        <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-        <div>
-          <h3 className="font-bold text-xs sm:text-sm">Session Reserved & Seat Locked!</h3>
-          <p className="text-xs opacity-90">
-            You are registered for full-day access. Google Sheets synchronized.
-          </p>
+      {/* Success Notification & Congratulatory Banner */}
+      <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-3xl space-y-2 text-emerald-900 shadow-sm">
+        <div className="flex items-center space-x-2.5">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <h3 className="font-bold text-sm sm:text-base">Congratulations on Completing Your Certification Registration!</h3>
         </div>
+        <p className="text-xs text-emerald-800 leading-relaxed pl-7">
+          We are thrilled to partner with you! This assignment will bring you right up to speed with the best AI practices in the QA and software testing world, boosting your skills, strengthening our technical partnership, and giving your career a powerful boost.
+        </p>
       </div>
 
       {/* Ticket Pass Card */}

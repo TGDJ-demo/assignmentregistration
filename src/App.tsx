@@ -11,10 +11,10 @@ export default function App() {
   const [isAdminAuthorized, setIsAdminAuthorized] = useState<boolean>(false);
 
   const [eventInfo, setEventInfo] = useState<EventInfo>({
-    title: 'QA & Software Testing Summit 2026',
-    subtitle: 'Full-Day Testing & Automation Access',
-    location: 'Virtual Tech Hub',
-    description: 'Select your access discipline (Web Platform or Mobile Apps) and pick your event date. Access is granted for the entire day with 10 capacity limit per platform.',
+    title: 'QA & Software Testing Certification Summit 2026',
+    subtitle: 'Mastering AI Practices in QA & Automation',
+    location: 'Virtual Tech Hub & Certification Portal',
+    description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
     availableDates: ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14'],
   });
 
@@ -80,10 +80,10 @@ export default function App() {
               <div className="text-center max-w-2xl mx-auto space-y-3">
                 <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white border border-zinc-200/80 text-blue-600 text-xs font-bold shadow-xs">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Full-Day Event Access • 10 Seats per Discipline</span>
+                  <span>Full-Day Access • Professional Certification & AI Testing</span>
                 </div>
                 <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900">
-                  Reserve Your Event Session
+                  Reserve Your Certification Session
                 </h2>
                 <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">
                   {eventInfo.description}
@@ -98,7 +98,7 @@ export default function App() {
                     <Smartphone className="w-3.5 h-3.5 text-purple-600" /> Mobile Apps
                   </span>
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
-                    <ShieldCheck className="w-3.5 h-3.5 text-green-600" /> 10 Max Capacity Guard
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> AI QA Best Practices
                   </span>
                   <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
                     <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> Google Sheets Sync

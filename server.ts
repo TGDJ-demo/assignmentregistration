@@ -33,10 +33,10 @@ function loadDB(): DBStore {
       if (!store.registrations) store.registrations = [];
       if (!store.eventInfo) {
         store.eventInfo = {
-          title: 'QA & Software Testing Summit 2026',
-          subtitle: 'Full-Day Testing & Automation Access',
-          location: 'Virtual Tech Hub & Innovation Center',
-          description: 'Join top engineers for full-day hands-on testing sessions. Select your testing discipline (Web or Mobile) and pick your preferred event date.',
+          title: 'QA & Software Testing Certification Summit 2026',
+          subtitle: 'Mastering AI Practices in QA & Automation',
+          location: 'Virtual Tech Hub & Certification Portal',
+          description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
           availableDates: DEFAULT_DATES,
         };
       }
@@ -48,10 +48,10 @@ function loadDB(): DBStore {
 
   const initialStore: DBStore = {
     eventInfo: {
-      title: 'QA & Software Testing Summit 2026',
-      subtitle: 'Full-Day Testing & Automation Access',
-      location: 'Virtual Tech Hub & Innovation Center',
-      description: 'Join top engineers for full-day hands-on testing sessions. Select your testing discipline (Web or Mobile) and pick your preferred event date.',
+      title: 'QA & Software Testing Certification Summit 2026',
+      subtitle: 'Mastering AI Practices in QA & Automation',
+      location: 'Virtual Tech Hub & Certification Portal',
+      description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
       availableDates: DEFAULT_DATES,
     },
     registrations: [
