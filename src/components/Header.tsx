@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </h1>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 uppercase tracking-wider">
                   <ShieldCheck className="w-3 h-3 mr-1 text-green-600" />
-                  Live Sync
+                  Verified
                 </span>
               </div>
               <p className="text-xs text-zinc-500 font-medium line-clamp-1">

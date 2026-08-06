@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TesterType, RegistrationRequest, Registration, DateAvailability } from '../types';
 import { Monitor, Smartphone, Calendar as CalendarIcon, AlertCircle, Loader2, Globe, ShieldAlert, ArrowRight, CheckCircle2, UserCheck, Edit2 } from 'lucide-react';
 import { CalendarPicker } from './CalendarPicker';
+import { generateAvailableDates } from '../utils/dateUtils';
 import { CONTINENT_TIMEZONES } from '../utils/timezone';
 
 interface RegistrationFormProps {
@@ -50,14 +51,74 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     fetchAvailabilities();
   }, []);
 
+  const getCombinedRegistrations = (serverRegs: Registration[] = []): Registration[] => {
+    let localRegs: Registration[] = [];
+    try {
+      const stored = localStorage.getItem('registrations_list');
+      if (stored) localRegs = JSON.parse(stored);
+    } catch (_) {}
+
+    const map = new Map<string, Registration>();
+    [...serverRegs, ...localRegs].forEach(r => {
+      if (r && r.id) map.set(r.id, r);
+      else if (r && r.email && r.date) map.set(`${r.email}-${r.date}`, r);
+    });
+    return Array.from(map.values());
+  };
+
+  const saveLocalRegistration = (reg: Registration) => {
+    try {
+      const stored = localStorage.getItem('registrations_list');
+      const list: Registration[] = stored ? JSON.parse(stored) : [];
+      if (!list.some(r => r.id === reg.id || (r.email === reg.email && r.date === reg.date))) {
+        list.push(reg);
+        localStorage.setItem('registrations_list', JSON.stringify(list));
+      }
+    } catch (_) {}
+  };
+
   const fetchAvailabilities = async () => {
     setLoadingAvail(true);
     try {
-      const res = await fetch('/api/availability');
-      if (res.ok) {
-        const data: DateAvailability[] = await res.json();
-        setAvailabilities(data);
-      }
+      let serverAvails: DateAvailability[] = [];
+      let serverRegs: Registration[] = [];
+
+      try {
+        const [availRes, regRes] = await Promise.all([
+          fetch('/api/availability'),
+          fetch('/api/registrations'),
+        ]);
+
+        if (availRes.ok) serverAvails = await availRes.json();
+        if (regRes.ok) {
+          const regData = await regRes.json();
+          serverRegs = regData.registrations || [];
+        }
+      } catch (_) {}
+
+      const allRegs = getCombinedRegistrations(serverRegs);
+
+      const dates = availableDates.length > 0 ? availableDates : generateAvailableDates();
+
+      const calculatedAvails: DateAvailability[] = dates.map(date => {
+        const dateRegs = allRegs.filter(r => r.date === date);
+        const webBooked = dateRegs.filter(r => r.testerType === 'web' || r.testerType === 'Web Platform' || !r.testerType).length;
+        const mobileBooked = dateRegs.filter(r => r.testerType === 'mobile' || r.testerType === 'Mobile Apps').length;
+
+        const serverMatch = serverAvails.find(a => a.date === date);
+        const finalWebBooked = Math.max(webBooked, serverMatch ? serverMatch.webBooked : 0);
+        const finalMobileBooked = Math.max(mobileBooked, serverMatch ? serverMatch.mobileBooked : 0);
+
+        return {
+          date,
+          webBooked: finalWebBooked,
+          webMax: 10,
+          mobileBooked: finalMobileBooked,
+          mobileMax: 10,
+        };
+      });
+
+      setAvailabilities(calculatedAvails);
     } catch (err) {
       console.error('Failed to load availabilities:', err);
     } finally {
@@ -197,11 +258,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           }
         } catch (_) {}
 
+        saveLocalRegistration(fallbackReg);
         onRegistrationSuccess(fallbackReg);
         return;
       }
 
       if (data.registration) {
+        saveLocalRegistration(data.registration);
         onRegistrationSuccess(data.registration);
         return;
       }
@@ -217,6 +280,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         createdAt: new Date().toISOString(),
         ticketCode,
       };
+      saveLocalRegistration(fallbackReg);
       onRegistrationSuccess(fallbackReg);
     } catch (err: any) {
       console.error('Submit registration network/server fallback:', err);
@@ -231,6 +295,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         createdAt: new Date().toISOString(),
         ticketCode,
       };
+      saveLocalRegistration(fallbackReg);
       onRegistrationSuccess(fallbackReg);
     } finally {
       setSubmitting(false);

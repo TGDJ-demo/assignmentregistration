@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Registration, GoogleSheetsConfig, DateAvailability } from '../types';
+import { generateAvailableDates } from '../utils/dateUtils';
 import { Download, Search, RefreshCw, Trash2, FileSpreadsheet, CheckCircle2, Copy, ExternalLink, Users, Monitor, Smartphone, Calendar as CalendarIcon } from 'lucide-react';
 
 const DEFAULT_APPS_SCRIPT = `
@@ -99,28 +100,74 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
   const fetchRegistrationsAndAvailabilities = async () => {
     setLoading(true);
     try {
-      const [regRes, availRes] = await Promise.all([
-        fetch('/api/registrations'),
-        fetch('/api/availability'),
-      ]);
+      let serverRegs: Registration[] = [];
+      let serverAvails: DateAvailability[] = [];
 
-      if (regRes.ok) {
-        const regData = await regRes.json();
-        setRegistrations(regData.registrations || []);
-        setSheetsConfig(regData.sheetsConfig || { autoSync: false });
-        if (regData.sheetsConfig?.webhookUrl) {
-          setWebhookUrl(regData.sheetsConfig.webhookUrl);
-          localStorage.setItem('sheets_webhook_url', regData.sheetsConfig.webhookUrl);
-        } else {
-          const localUrl = localStorage.getItem('sheets_webhook_url');
-          if (localUrl) setWebhookUrl(localUrl);
+      try {
+        const [regRes, availRes] = await Promise.all([
+          fetch('/api/registrations'),
+          fetch('/api/availability'),
+        ]);
+
+        if (regRes.ok) {
+          const regData = await regRes.json();
+          serverRegs = regData.registrations || [];
+          setSheetsConfig(regData.sheetsConfig || { autoSync: false });
+          if (regData.sheetsConfig?.webhookUrl) {
+            setWebhookUrl(regData.sheetsConfig.webhookUrl);
+            localStorage.setItem('sheets_webhook_url', regData.sheetsConfig.webhookUrl);
+          } else {
+            const localUrl = localStorage.getItem('sheets_webhook_url');
+            if (localUrl) setWebhookUrl(localUrl);
+          }
         }
-      }
 
-      if (availRes.ok) {
-        const availData = await availRes.json();
-        setAvailabilities(availData || []);
-      }
+        if (availRes.ok) {
+          serverAvails = await availRes.json();
+        }
+      } catch (_) {}
+
+      // Combine with local registrations
+      let localRegs: Registration[] = [];
+      try {
+        const stored = localStorage.getItem('registrations_list');
+        if (stored) localRegs = JSON.parse(stored);
+      } catch (_) {}
+
+      const map = new Map<string, Registration>();
+      [...serverRegs, ...localRegs].forEach(r => {
+        if (r && r.id) map.set(r.id, r);
+        else if (r && r.email && r.date) map.set(`${r.email}-${r.date}`, r);
+      });
+      const combinedRegs = Array.from(map.values());
+      setRegistrations(combinedRegs);
+
+      // Save merged list back to localStorage
+      try {
+        localStorage.setItem('registrations_list', JSON.stringify(combinedRegs));
+      } catch (_) {}
+
+      // Calculate availability accurately
+      const dates = availableDates.length > 0 ? availableDates : generateAvailableDates();
+      const calculatedAvails: DateAvailability[] = dates.map(date => {
+        const dateRegs = combinedRegs.filter(r => r.date === date);
+        const webBooked = dateRegs.filter(r => r.testerType === 'web' || r.testerType === 'Web Platform' || !r.testerType).length;
+        const mobileBooked = dateRegs.filter(r => r.testerType === 'mobile' || r.testerType === 'Mobile Apps').length;
+
+        const serverMatch = serverAvails.find(a => a.date === date);
+        const finalWebBooked = Math.max(webBooked, serverMatch ? serverMatch.webBooked : 0);
+        const finalMobileBooked = Math.max(mobileBooked, serverMatch ? serverMatch.mobileBooked : 0);
+
+        return {
+          date,
+          webBooked: finalWebBooked,
+          webMax: 10,
+          mobileBooked: finalMobileBooked,
+          mobileMax: 10,
+        };
+      });
+
+      setAvailabilities(calculatedAvails);
     } catch (err) {
       console.error('Failed to fetch admin data', err);
     } finally {
@@ -174,7 +221,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
       if (res.ok) {
         const data = await res.json();
         setSheetsConfig(data.sheetsConfig);
-        setConfigSuccessMsg('Google Sheets webhook saved successfully! Registrations stream live.');
+        setConfigSuccessMsg('Google Sheets webhook saved successfully! Registrations configured.');
         setTimeout(() => setConfigSuccessMsg(null), 5000);
       } else {
         setConfigSuccessMsg('Google Sheets webhook saved locally! Registrations will sync automatically.');
@@ -273,9 +320,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
               <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400" />
               <span>Google Sheets Integration</span>
             </div>
-            <h3 className="text-xl font-bold">Stream Registrations to Google Sheets</h3>
+            <h3 className="text-xl font-bold">Sync Registrations to Google Sheets</h3>
             <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-              Registrations automatically sync with live date availability and stream directly to Google Sheets in real time.
+              Registrations automatically sync with date availability and send directly to Google Sheets.
             </p>
           </div>
 
@@ -302,7 +349,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
         {/* Webhook Configuration */}
         <form onSubmit={handleSaveSheetsConfig} className="mt-6 pt-6 border-t border-zinc-800 space-y-2">
           <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-            Google Apps Script Webhook URL (Live Stream)
+            Google Apps Script Webhook URL
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <input

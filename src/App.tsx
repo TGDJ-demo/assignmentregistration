@@ -4,7 +4,8 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { RegistrationTicket } from './components/RegistrationTicket';
 import { AdminPanel } from './components/AdminPanel';
 import { EventInfo, Registration } from './types';
-import { Monitor, Smartphone, FileSpreadsheet, ShieldCheck, Sparkles } from 'lucide-react';
+import { generateAvailableDates } from './utils/dateUtils';
+import { Monitor, Smartphone, ShieldCheck, Sparkles, CheckCircle2, PartyPopper, X } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'register' | 'admin'>('register');
@@ -15,11 +16,12 @@ export default function App() {
     subtitle: 'Mastering AI Practices in QA & Automation',
     location: 'Virtual Tech Hub & Certification Portal',
     description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
-    availableDates: ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14'],
+    availableDates: generateAvailableDates(),
   });
 
   const [registrationCount, setRegistrationCount] = useState<number>(0);
   const [currentRegistration, setCurrentRegistration] = useState<Registration | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
 
   useEffect(() => {
     fetchEventInfo();
@@ -52,15 +54,54 @@ export default function App() {
 
   const handleRegistrationSuccess = (reg: Registration) => {
     setCurrentRegistration(reg);
+    setShowSuccessToast(true);
     fetchRegistrationsCount();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // Auto dismiss toast after 7s
+    setTimeout(() => {
+      setShowSuccessToast(false);
+    }, 7000);
   };
 
   const handleRegisterAnother = () => {
     setCurrentRegistration(null);
+    setShowSuccessToast(false);
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] text-zinc-900 flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-[#F0F2F5] text-zinc-900 flex flex-col font-sans antialiased relative">
+      {/* Fancy Celebratory Success Popup / Toast */}
+      {showSuccessToast && currentRegistration && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-6 duration-500">
+          <div className="bg-zinc-900 text-white p-4 sm:p-5 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-start space-x-3.5 relative overflow-hidden group">
+            <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 w-full animate-pulse" />
+            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 flex-shrink-0 mt-0.5 animate-bounce">
+              <PartyPopper className="w-6 h-6" />
+            </div>
+            <div className="flex-1 pr-4">
+              <div className="flex items-center space-x-2">
+                <span className="font-extrabold text-sm sm:text-base text-white">Registration Successful!</span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                  PASS ISSUED
+                </span>
+              </div>
+              <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
+                Welcome <strong className="text-emerald-300">{currentRegistration.name}</strong>! Ticket Code{' '}
+                <strong className="font-mono text-emerald-300">{currentRegistration.ticketCode}</strong> reserved for{' '}
+                {currentRegistration.date} ({currentRegistration.testerType === 'web' ? 'Web Platform' : 'Mobile Apps'}).
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSuccessToast(false)}
+              className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* App Header */}
       <Header
         activeTab={activeTab}
@@ -137,7 +178,7 @@ export default function App() {
           <div className="flex items-center space-x-2">
             <span className="font-bold text-zinc-800">Event Registration & Session Booking</span>
             <span>•</span>
-            <span>Live Sync</span>
+            <span>Official Portal</span>
           </div>
           <div className="flex items-center space-x-4">
             <button

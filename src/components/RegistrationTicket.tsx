@@ -54,7 +54,7 @@ export const RegistrationTicket: React.FC<RegistrationTicketProps> = ({
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="max-w-xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-500">
       {/* Success Notification & Congratulatory Banner */}
       <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-3xl space-y-2 text-emerald-900 shadow-sm">
         <div className="flex items-center space-x-2.5">

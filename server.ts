@@ -20,7 +20,30 @@ interface DBStore {
   sheetsConfig: GoogleSheetsConfig;
 }
 
-const DEFAULT_DATES = ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14'];
+function generateAvailableDates(): string[] {
+  const dates: string[] = [];
+  const now = new Date();
+  let current = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const aug1 = new Date(2026, 7, 1);   // Aug 1, 2026
+  const aug31 = new Date(2026, 7, 31); // Aug 31, 2026
+
+  if (current < aug1 || current > aug31) {
+    current = aug1;
+  }
+
+  while (current <= aug31) {
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, '0');
+    const dd = String(current.getDate()).padStart(2, '0');
+    dates.push(`${yyyy}-${mm}-${dd}`);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+const DEFAULT_DATES = generateAvailableDates();
 
 function loadDB(): DBStore {
   try {
@@ -37,8 +60,10 @@ function loadDB(): DBStore {
           subtitle: 'Mastering AI Practices in QA & Automation',
           location: 'Virtual Tech Hub & Certification Portal',
           description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
-          availableDates: DEFAULT_DATES,
+          availableDates: generateAvailableDates(),
         };
+      } else {
+        store.eventInfo.availableDates = generateAvailableDates();
       }
       return store;
     }
