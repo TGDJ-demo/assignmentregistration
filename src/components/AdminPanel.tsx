@@ -130,35 +130,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
     fetchScriptTemplate();
   }, []);
 
+  // Simple fetch with retry helper for robustness
+  const fetchWithRetry = async (input: RequestInfo, init: RequestInit = {}, attempts = 3, backoff = 500) => {
+    let lastErr: any = null;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fetch(input, init);
+        return res;
+      } catch (err) {
+        lastErr = err;
+        // simple backoff
+        await new Promise(r => setTimeout(r, backoff * (i + 1)));
+      }
+    }
+    throw lastErr;
+  };
+
   const fetchRegistrationsAndAvailabilities = async () => {
     setLoading(true);
     try {
       let serverRegs: Registration[] = [];
       let serverAvails: DateAvailability[] = [];
+      let serverFetched = false;
 
       try {
         const [regRes, availRes] = await Promise.all([
-          fetch('/api/registrations'),
-          fetch('/api/availability'),
+          fetchWithRetry('/api/registrations', {}, 3, 400),
+          fetchWithRetry('/api/availability', {}, 3, 400),
         ]);
 
-        if (regRes.ok) {
+        if (regRes && regRes.ok) {
           const regData = await regRes.json();
           serverRegs = regData.registrations || [];
           setSheetsConfig(regData.sheetsConfig || { autoSync: true, webhookUrl: HARDCODED_WEBHOOK_URL });
           const url = regData.sheetsConfig?.webhookUrl || localStorage.getItem('sheets_webhook_url') || HARDCODED_WEBHOOK_URL;
           setWebhookUrl(url);
           localStorage.setItem('sheets_webhook_url', url);
-        } else {
-          const url = localStorage.getItem('sheets_webhook_url') || HARDCODED_WEBHOOK_URL;
-          setWebhookUrl(url);
-          localStorage.setItem('sheets_webhook_url', url);
+          serverFetched = true;
         }
 
-        if (availRes.ok) {
+        if (availRes && availRes.ok) {
           serverAvails = await availRes.json();
         }
-      } catch (_) {
+      } catch (fetchErr) {
+        // keep going and try to recover from localStorage
         const url = localStorage.getItem('sheets_webhook_url') || HARDCODED_WEBHOOK_URL;
         setWebhookUrl(url);
         localStorage.setItem('sheets_webhook_url', url);
@@ -170,16 +185,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
         if (stored) localRegs = JSON.parse(stored);
       } catch (_) {}
 
+      // Merge registrations: prefer server data (server should overwrite local stale entries)
       const map = new Map<string, Registration>();
-      [...serverRegs, ...localRegs].forEach(r => {
-        if (r && r.id) map.set(r.id, r);
-        else if (r && r.email && r.date) map.set(`${r.email}-${r.date}`, r);
+
+      // iterate local first, then server so server overwrites when keys collide
+      [...localRegs, ...serverRegs].forEach(r => {
+        if (!r) return;
+        // generate a stable fallback id for entries that don't have one
+        const fallbackKey = (r.email && r.date) ? `${r.email}-${r.date}` : (r.ticketCode ? r.ticketCode : `local-${r.name}-${r.createdAt || Date.now()}`);
+        const idKey = (r.id && String(r.id).trim() !== '') ? String(r.id) : fallbackKey;
+        // ensure the object has an id field so UI actions have a stable identifier
+        if (!r.id) r.id = idKey;
+        map.set(idKey, r);
       });
+
       const combinedRegs = Array.from(map.values());
       setRegistrations(combinedRegs);
 
+      // If we successfully fetched server data, persist the merged (server-preferred) list to localStorage so UI stays in sync
       try {
-        localStorage.setItem('registrations_list', JSON.stringify(combinedRegs));
+        if (serverFetched) {
+          localStorage.setItem('registrations_list', JSON.stringify(combinedRegs));
+        }
       } catch (_) {}
 
       const dates = availableDates.length > 0 ? availableDates : generateAvailableDates();
@@ -217,8 +244,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
 
   const fetchScriptTemplate = async () => {
     try {
-      const res = await fetch('/api/google-sheets/script-template');
-      if (res.ok) {
+      const res = await fetchWithRetry('/api/google-sheets/script-template', {}, 3, 300);
+      if (res && res.ok) {
         const data = await res.json();
         setScriptTemplate(data.scriptCode);
       }
@@ -227,18 +254,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
     }
   };
 
-  const handleDeleteRegistration = async (id: string, name: string) => {
+  const handleDeleteRegistration = async (id: string, name: string, fallback?: { email?: string; date?: string }) => {
     if (!window.confirm(`Are you sure you want to cancel registration for ${name}?`)) {
       return;
     }
+
+    // If there's no id (or id is a local fallback), try best-effort deletion: call API when id exists; otherwise remove locally
+    let removedLocally = false;
     try {
-      const res = await fetch(`/api/registrations/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchRegistrationsAndAvailabilities();
-        if (onRefreshData) onRefreshData();
+      if (id && !id.startsWith('local-')) {
+        const res = await fetch(`/api/registrations/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (res.ok) {
+          // refresh from server
+          await fetchRegistrationsAndAvailabilities();
+          if (onRefreshData) onRefreshData();
+          return;
+        }
       }
     } catch (err) {
       console.error('Error deleting registration', err);
+    }
+
+    // Fallback: remove from local state + localStorage so UI reflects deletion even if server endpoint can't be reached or id missing
+    try {
+      setRegistrations(prev => {
+        const filtered = prev.filter(r => r.id !== id && !(fallback && r.email === fallback.email && r.date === fallback.date));
+        try { localStorage.setItem('registrations_list', JSON.stringify(filtered)); } catch (_) {}
+        removedLocally = true;
+        return filtered;
+      });
+
+      if (removedLocally && onRefreshData) onRefreshData();
+    } catch (err) {
+      console.error('Error removing registration locally', err);
     }
   };
 
@@ -249,7 +297,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
       const res = await fetch('/api/google-sheets/sync', { method: 'POST' });
       if (res.ok) {
         setConfigSuccessMsg('Google Sheet synced successfully!');
-        fetchRegistrationsAndAvailabilities();
+        await fetchRegistrationsAndAvailabilities();
         if (onRefreshData) onRefreshData();
       } else {
         setConfigSuccessMsg('Sheet sync completed.');
@@ -267,12 +315,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
     if (!window.confirm('Reset all registration data back to default state?')) return;
     try {
       const res = await fetch('/api/admin/reset-data', { method: 'POST' });
-      if (res.ok) {
-        fetchRegistrationsAndAvailabilities();
+      if (res && res.ok) {
+        // clear any local cache so UI reflects cleared server state
+        try { localStorage.removeItem('registrations_list'); } catch (_) {}
+        await fetchRegistrationsAndAvailabilities();
+        if (onRefreshData) onRefreshData();
+      } else {
+        // fallback: clear local cache
+        try { localStorage.removeItem('registrations_list'); } catch (_) {}
+        await fetchRegistrationsAndAvailabilities();
         if (onRefreshData) onRefreshData();
       }
     } catch (err) {
       console.error(err);
+      // fallback local clear
+      try { localStorage.removeItem('registrations_list'); } catch (_) {}
+      await fetchRegistrationsAndAvailabilities();
+      if (onRefreshData) onRefreshData();
     }
   };
 
@@ -282,11 +341,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
     setTimeout(() => setCopiedScript(false), 3000);
   };
 
+  const downloadCSV = async () => {
+    setConfigSuccessMsg(null);
+    try {
+      const res = await fetch('/api/export-csv');
+      if (!res.ok) {
+        setConfigSuccessMsg('CSV export unavailable.');
+        setTimeout(() => setConfigSuccessMsg(null), 3000);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'event_registrations.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setConfigSuccessMsg('CSV downloaded');
+    } catch (err) {
+      console.error('CSV download failed', err);
+      setConfigSuccessMsg('CSV export failed.');
+    } finally {
+      setTimeout(() => setConfigSuccessMsg(null), 3000);
+    }
+  };
+
   const filteredRegistrations = registrations.filter(r => {
+    const name = (r.name || '').toLowerCase();
+    const email = (r.email || '').toLowerCase();
+    const ticket = (r.ticketCode || '').toLowerCase();
+
     const matchesSearch =
-      r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.ticketCode.toLowerCase().includes(searchQuery.toLowerCase());
+      name.includes(searchQuery.toLowerCase()) ||
+      email.includes(searchQuery.toLowerCase()) ||
+      ticket.includes(searchQuery.toLowerCase());
 
     const matchesType = filterType === 'all' || r.testerType === filterType;
     const matchesDate = filterDate === 'all' || r.date === filterDate;
@@ -326,7 +416,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Mobile Apps</span>
             <span className="text-lg font-bold text-white mt-0.5 block">{mobileCount}</span>
           </div>
-          <div className="p-2 bg-gradient-to-br from-pink-500/20 to-purple-500/20 text-pink-300 border border-white/10 rounded-xl">
+          <div className="p-2 bg-gradient-to-br from-pink-500/20 to-purple-500/20 text-pink-300 border border-pink-400/20 rounded-xl">
             <Smartphone className="w-4 h-4" />
           </div>
         </div>
@@ -347,14 +437,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <a
-              href="/api/export-csv"
-              download="event_registrations.csv"
-              className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl text-xs transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs"
+            <button
+              type="button"
+              onClick={downloadCSV}
+              className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl text-xs transition-colors flex items-center space-x-2"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export CSV</span>
-            </a>
+            </button>
 
             <button
               type="button"
@@ -400,7 +490,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
               type="button"
               onClick={handleSyncSheets}
               disabled={savingConfig}
-              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer shrink-0 flex items-center justify-center space-x-1.5 shadow-xs"
+              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer flex items-center space-x-2"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${savingConfig ? 'animate-spin' : ''}`} />
               <span>{savingConfig ? 'Syncing...' : 'Sync Google Sheet'}</span>
@@ -563,7 +653,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
                     <td className="px-3.5 py-2.5 text-right">
                       <button
                         type="button"
-                        onClick={() => handleDeleteRegistration(r.id, r.name)}
+                        onClick={() => handleDeleteRegistration(r.id, r.name, { email: r.email, date: r.date })}
                         className="p-1 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
                         title="Cancel Registration"
                       >
@@ -603,7 +693,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
               <button
                 type="button"
                 onClick={copyScriptToClipboard}
-                className="absolute top-2 right-2 px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-lg flex items-center space-x-1 transition-colors cursor-pointer shadow-xs"
+                className="absolute top-2 right-2 px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-lg flex items-center space-x-2"
               >
                 <Copy className="w-3.5 h-3.5 text-pink-300" />
                 <span>{copiedScript ? 'Copied!' : 'Copy'}</span>
