@@ -61,20 +61,17 @@ function loadDB(): DBStore {
           title: 'QA & Software Testing Certification Summit 2026',
           subtitle: 'Mastering AI Practices in QA & Automation',
           location: 'Virtual Tech Hub & Certification Portal',
-          description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
+          description: 'Congratulations on taking this crucial step toward completing your certification! Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
           availableDates: generateAvailableDates(),
         };
       } else {
         store.eventInfo.availableDates = generateAvailableDates();
       }
-      if (!store.sheetsConfig) {
-        store.sheetsConfig = {
-          autoSync: true,
-          webhookUrl: HARDCODED_WEBHOOK_URL,
-        };
-      } else if (!store.sheetsConfig.webhookUrl) {
-        store.sheetsConfig.webhookUrl = HARDCODED_WEBHOOK_URL;
-      }
+      store.sheetsConfig = {
+        autoSync: true,
+        webhookUrl: HARDCODED_WEBHOOK_URL,
+        lastSyncTime: store.sheetsConfig?.lastSyncTime,
+      };
       return store;
     }
   } catch (err) {
@@ -86,7 +83,7 @@ function loadDB(): DBStore {
       title: 'QA & Software Testing Certification Summit 2026',
       subtitle: 'Mastering AI Practices in QA & Automation',
       location: 'Virtual Tech Hub & Certification Portal',
-      description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
+      description: 'Congratulations on taking this crucial step toward completing your certification! Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
       availableDates: DEFAULT_DATES,
     },
     registrations: [
@@ -136,6 +133,84 @@ async function startServer() {
 
   let db = loadDB();
 
+  // Helper to read registrations from Google Sheet and merge into DB
+  async function syncFromGoogleSheet(): Promise<Registration[]> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      // Attempt GET call to Google Apps Script webhook URL
+      let res = await fetch(HARDCODED_WEBHOOK_URL, {
+        method: 'GET',
+        signal: controller.signal,
+      }).catch(() => null);
+
+      clearTimeout(timeoutId);
+
+      if (!res || !res.ok) {
+        // Fallback: POST call with action=READ query param
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 6000);
+        const params = new URLSearchParams({ action: 'READ' }).toString();
+        res = await fetch(`${HARDCODED_WEBHOOK_URL}?${params}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'READ' }),
+          signal: controller2.signal,
+        }).catch(() => null);
+        clearTimeout(timeoutId2);
+      }
+
+      if (res && res.ok) {
+        const text = await res.text();
+        let parsed: any = null;
+        try { parsed = JSON.parse(text); } catch (_) {}
+
+        if (parsed && Array.isArray(parsed.registrations)) {
+          let addedCount = 0;
+          for (const item of parsed.registrations) {
+            if (!item.email || !item.date) continue;
+            const cleanEmail = String(item.email).trim().toLowerCase();
+            const cleanDate = String(item.date).trim();
+            const existing = db.registrations.find(
+              r => r.email.toLowerCase() === cleanEmail && r.date === cleanDate
+            );
+            if (!existing) {
+              const rawType = String(item.testerType || '').toLowerCase();
+              const testerType: 'web' | 'mobile' = rawType.includes('mobile') ? 'mobile' : 'web';
+              const newReg: Registration = {
+                id: item.id || `reg-sheet-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                name: String(item.name || 'Sheet Attendee').trim(),
+                email: cleanEmail,
+                testerType,
+                date: cleanDate,
+                ticketCode: item.ticketCode || `TKT-${Math.floor(1000 + Math.random() * 9000)}-${testerType.toUpperCase()}`,
+                createdAt: item.createdAt || new Date().toISOString(),
+              };
+              db.registrations.push(newReg);
+              addedCount++;
+            }
+          }
+          if (addedCount > 0) {
+            db.sheetsConfig.lastSyncTime = new Date().toISOString();
+            saveDB(db);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error syncing from Google Sheet:', err);
+    }
+    return db.registrations;
+  }
+
+  // Initial sync attempt on server boot
+  syncFromGoogleSheet().catch(() => {});
+
+  // Continuous background auto-sync with Google Sheet every 10 seconds
+  setInterval(() => {
+    syncFromGoogleSheet().catch(() => {});
+  }, 10000);
+
   // Calculate availability for dates
   function getDateAvailabilities(): DateAvailability[] {
     return db.eventInfo.availableDates.map(date => {
@@ -159,8 +234,9 @@ async function startServer() {
   });
 
   // GET Availability by Date (for Web and Mobile)
-  app.get('/api/availability', (req: Request, res: Response) => {
+  app.get('/api/availability', async (req: Request, res: Response) => {
     const date = req.query.date as string | undefined;
+    await syncFromGoogleSheet().catch(() => {});
     const availabilities = getDateAvailabilities();
     if (date) {
       const found = availabilities.find(a => a.date === date) || {
@@ -173,6 +249,17 @@ async function startServer() {
       return res.json(found);
     }
     res.json(availabilities);
+  });
+
+  // POST Trigger Sync with Google Sheet
+  app.post('/api/google-sheets/sync', async (_req: Request, res: Response) => {
+    await syncFromGoogleSheet();
+    res.json({
+      success: true,
+      lastSyncTime: db.sheetsConfig.lastSyncTime || new Date().toISOString(),
+      totalCount: db.registrations.length,
+      registrations: db.registrations,
+    });
   });
 
   // POST Register for an event
@@ -234,37 +321,25 @@ async function startServer() {
       db.registrations.push(newReg);
       saveDB(db);
 
-      // Trigger external Google Sheets webhook if configured (NON-BLOCKING with 4s AbortController timeout)
-      if (db.sheetsConfig.webhookUrl) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+      // Automatically push registration directly to embedded Google Sheets Webhook URL
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        fetch(db.sheetsConfig.webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'ADD_ROW',
-            data: newReg,
-            id: newReg.id,
-            name: newReg.name,
-            email: newReg.email,
-            testerType: newReg.testerType,
-            date: newReg.date,
-            ticketCode: newReg.ticketCode,
-            createdAt: newReg.createdAt,
-          }),
-          signal: controller.signal,
+      fetch(HARDCODED_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(newReg),
+        signal: controller.signal,
+      })
+        .then(() => {
+          clearTimeout(timeoutId);
+          db.sheetsConfig.lastSyncTime = new Date().toISOString();
+          saveDB(db);
         })
-          .then(() => {
-            clearTimeout(timeoutId);
-            db.sheetsConfig.lastSyncTime = new Date().toISOString();
-            saveDB(db);
-          })
-          .catch(err => {
-            clearTimeout(timeoutId);
-            console.error('Google Sheets Webhook Push Error (non-blocking):', err.message || err);
-          });
-      }
+        .catch(err => {
+          clearTimeout(timeoutId);
+          console.error('Google Sheets Webhook Push Error:', err.message || err);
+        });
 
       return res.json({
         success: true,
@@ -278,9 +353,11 @@ async function startServer() {
   });
 
   // GET Check existing email registration
-  app.get('/api/check-email', (req: Request, res: Response) => {
+  app.get('/api/check-email', async (req: Request, res: Response) => {
     const email = req.query.email as string | undefined;
     if (!email) return res.json({ registered: false });
+
+    await syncFromGoogleSheet().catch(() => {});
 
     const cleanEmail = email.trim().toLowerCase();
     const existing = db.registrations.find(r => r.email.toLowerCase() === cleanEmail);
@@ -291,7 +368,9 @@ async function startServer() {
   });
 
   // GET All Registrations (Admin View)
-  app.get('/api/registrations', (_req: Request, res: Response) => {
+  app.get('/api/registrations', async (_req: Request, res: Response) => {
+    await syncFromGoogleSheet().catch(() => {});
+
     res.json({
       registrations: db.registrations,
       sheetsConfig: db.sheetsConfig,
@@ -314,14 +393,12 @@ async function startServer() {
     res.json({ success: true, message: 'Registration cancelled and seat released.' });
   });
 
-  // POST Google Sheets Configuration
-  app.post('/api/google-sheets/config', (req: Request, res: Response) => {
-    const { webhookUrl, spreadsheetId, autoSync } = req.body;
+  // POST Google Sheets Configuration (Embedded URL enforcement)
+  app.post('/api/google-sheets/config', (_req: Request, res: Response) => {
     db.sheetsConfig = {
-      webhookUrl: (webhookUrl && webhookUrl.trim()) ? webhookUrl.trim() : HARDCODED_WEBHOOK_URL,
-      spreadsheetId: spreadsheetId ? spreadsheetId.trim() : undefined,
-      autoSync: Boolean(autoSync),
-      lastSyncTime: db.sheetsConfig.lastSyncTime,
+      webhookUrl: HARDCODED_WEBHOOK_URL,
+      autoSync: true,
+      lastSyncTime: db.sheetsConfig.lastSyncTime || new Date().toISOString(),
     };
     saveDB(db);
     res.json({ success: true, sheetsConfig: db.sheetsConfig });
@@ -352,6 +429,38 @@ async function startServer() {
 // ==========================================
 // GOOGLE SHEETS AUTOMATIC REGISTRATION SYNC
 // ==========================================
+function doGet(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = sheet.getDataRange().getValues();
+    if (!data || data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({ "result": "success", "registrations": [] }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var registrations = [];
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (!row[0] && !row[1] && !row[2]) continue;
+      registrations.push({
+        id: String(row[0] || ''),
+        name: String(row[1] || ''),
+        email: String(row[2] || ''),
+        testerType: (String(row[3] || '').toLowerCase().indexOf('mobile') !== -1) ? 'mobile' : 'web',
+        date: String(row[4] || ''),
+        ticketCode: String(row[5] || ''),
+        createdAt: String(row[6] || '')
+      });
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ "result": "success", "registrations": registrations }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "message": err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function doPost(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -381,6 +490,10 @@ function doPost(e) {
       }
     } else if (e && e.parameter) {
       rawData = e.parameter;
+    }
+
+    if (rawData.action === 'READ' || rawData.action === 'GET_ALL') {
+      return doGet(e);
     }
 
     // Extract fields with multiple key fallbacks

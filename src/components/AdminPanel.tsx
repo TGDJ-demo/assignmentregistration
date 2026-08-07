@@ -7,6 +7,38 @@ const DEFAULT_APPS_SCRIPT = `
 // ==========================================
 // GOOGLE SHEETS AUTOMATIC REGISTRATION SYNC
 // ==========================================
+function doGet(e) {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = sheet.getDataRange().getValues();
+    if (!data || data.length <= 1) {
+      return ContentService.createTextOutput(JSON.stringify({ "result": "success", "registrations": [] }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var registrations = [];
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (!row[0] && !row[1] && !row[2]) continue;
+      registrations.push({
+        id: String(row[0] || ''),
+        name: String(row[1] || ''),
+        email: String(row[2] || ''),
+        testerType: (String(row[3] || '').toLowerCase().indexOf('mobile') !== -1) ? 'mobile' : 'web',
+        date: String(row[4] || ''),
+        ticketCode: String(row[5] || ''),
+        createdAt: String(row[6] || '')
+      });
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ "result": "success", "registrations": registrations }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ "result": "error", "message": err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function doPost(e) {
   try {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -35,6 +67,10 @@ function doPost(e) {
       }
     } else if (e && e.parameter) {
       rawData = e.parameter;
+    }
+
+    if (rawData.action === 'READ' || rawData.action === 'GET_ALL') {
+      return doGet(e);
     }
 
     var regId = rawData.id || rawData.ticketCode || "";
@@ -206,34 +242,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
     }
   };
 
-  const handleSaveSheetsConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSyncSheets = async () => {
     setSavingConfig(true);
     setConfigSuccessMsg(null);
-    if (webhookUrl) {
-      localStorage.setItem('sheets_webhook_url', webhookUrl);
-    }
     try {
-      const res = await fetch('/api/google-sheets/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhookUrl, autoSync: true }),
-      });
+      const res = await fetch('/api/google-sheets/sync', { method: 'POST' });
       if (res.ok) {
-        const data = await res.json();
-        setSheetsConfig(data.sheetsConfig);
-        setConfigSuccessMsg('Google Sheets webhook saved!');
-        setTimeout(() => setConfigSuccessMsg(null), 5000);
+        setConfigSuccessMsg('Google Sheet synced successfully!');
+        fetchRegistrationsAndAvailabilities();
+        if (onRefreshData) onRefreshData();
       } else {
-        setConfigSuccessMsg('Google Sheets webhook saved locally!');
-        setTimeout(() => setConfigSuccessMsg(null), 5000);
+        setConfigSuccessMsg('Sheet sync completed.');
       }
     } catch (err) {
-      console.error('Failed to save config:', err);
-      setConfigSuccessMsg('Google Sheets webhook saved locally!');
-      setTimeout(() => setConfigSuccessMsg(null), 5000);
+      console.error('Failed to sync Google Sheets:', err);
+      setConfigSuccessMsg('Sync trigger sent.');
     } finally {
       setSavingConfig(false);
+      setTimeout(() => setConfigSuccessMsg(null), 4000);
     }
   };
 
@@ -341,34 +367,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ availableDates, onRefres
           </div>
         </div>
 
-        {/* Webhook Form */}
-        <form onSubmit={handleSaveSheetsConfig} className="pt-2.5 border-t border-white/10 space-y-1">
-          <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-            Google Apps Script Webhook URL
-          </label>
+        {/* Embedded Webhook Status & Sync */}
+        <div className="pt-2.5 border-t border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              Embedded Google Webhook URL
+            </label>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Connected & Embedded
+            </span>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="url"
-              placeholder="https://script.google.com/macros/s/AKfycbx.../exec"
-              value={webhookUrl}
-              onChange={e => setWebhookUrl(e.target.value)}
-              className="flex-1 px-3.5 py-1.5 bg-[#0A0D15]/80 border border-white/10 rounded-xl text-xs text-white placeholder-slate-600 focus:outline-none focus:border-indigo-400/80"
-            />
+            <div className="flex-1 px-3 py-2 bg-[#0A0D15]/90 border border-white/10 rounded-xl text-xs font-mono text-indigo-200 truncate flex items-center justify-between">
+              <span className="truncate">{HARDCODED_WEBHOOK_URL}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(HARDCODED_WEBHOOK_URL);
+                  setConfigSuccessMsg('Webhook URL copied to clipboard!');
+                  setTimeout(() => setConfigSuccessMsg(null), 3000);
+                }}
+                className="ml-2 text-slate-400 hover:text-white p-1 rounded-md transition-colors shrink-0 cursor-pointer"
+                title="Copy URL"
+              >
+                <Copy className="w-3.5 h-3.5 text-pink-300" />
+              </button>
+            </div>
+
             <button
-              type="submit"
+              type="button"
+              onClick={handleSyncSheets}
               disabled={savingConfig}
-              className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-xl transition-colors cursor-pointer shrink-0"
+              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer shrink-0 flex items-center justify-center space-x-1.5 shadow-xs"
             >
-              {savingConfig ? 'Saving...' : 'Save Webhook'}
+              <RefreshCw className={`w-3.5 h-3.5 ${savingConfig ? 'animate-spin' : ''}`} />
+              <span>{savingConfig ? 'Syncing...' : 'Sync Google Sheet'}</span>
             </button>
           </div>
+
           {configSuccessMsg && (
             <p className="text-xs text-pink-300 flex items-center gap-1 font-medium mt-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
               {configSuccessMsg}
             </p>
           )}
-        </form>
+        </div>
       </div>
 
       {/* Date Capacity Summary */}

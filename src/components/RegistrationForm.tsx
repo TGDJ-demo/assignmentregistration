@@ -42,6 +42,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   useEffect(() => {
     fetchAvailabilities();
+    const interval = setInterval(() => {
+      fetchAvailabilities();
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const getCombinedRegistrations = (serverRegs: Registration[] = []): Registration[] => {
@@ -163,6 +167,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     fetchAvailabilities();
   };
 
+  const pushToGoogleSheetDirect = (reg: Registration) => {
+    try {
+      const webhookUrl = 'https://script.google.com/macros/s/AKfycbx42LzjESb5CnTx7UZwsYL2MMg26y5a5hf2rmS0JO6Ztq5a7P-sIdTnDyfXVFybrE6c/exec';
+      fetch(webhookUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(reg),
+      }).catch(err => console.error('Direct Google Sheet push error:', err));
+    } catch (_) {}
+  };
+
   const handleSubmitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -221,12 +237,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         };
 
         saveLocalRegistration(fallbackReg);
+        pushToGoogleSheetDirect(fallbackReg);
         onRegistrationSuccess(fallbackReg);
         return;
       }
 
       if (data.registration) {
         saveLocalRegistration(data.registration);
+        pushToGoogleSheetDirect(data.registration);
         onRegistrationSuccess(data.registration);
         return;
       }
@@ -242,6 +260,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         ticketCode,
       };
       saveLocalRegistration(fallbackReg);
+      pushToGoogleSheetDirect(fallbackReg);
       onRegistrationSuccess(fallbackReg);
     } catch (err: any) {
       console.error('Submit registration fallback:', err);
@@ -256,6 +275,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         ticketCode,
       };
       saveLocalRegistration(fallbackReg);
+      pushToGoogleSheetDirect(fallbackReg);
       onRegistrationSuccess(fallbackReg);
     } finally {
       setSubmitting(false);
