@@ -43,6 +43,8 @@ function generateAvailableDates(): string[] {
   return dates;
 }
 
+const HARDCODED_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbx42LzjESb5CnTx7UZwsYL2MMg26y5a5hf2rmS0JO6Ztq5a7P-sIdTnDyfXVFybrE6c/exec';
+
 const DEFAULT_DATES = generateAvailableDates();
 
 function loadDB(): DBStore {
@@ -64,6 +66,14 @@ function loadDB(): DBStore {
         };
       } else {
         store.eventInfo.availableDates = generateAvailableDates();
+      }
+      if (!store.sheetsConfig) {
+        store.sheetsConfig = {
+          autoSync: true,
+          webhookUrl: HARDCODED_WEBHOOK_URL,
+        };
+      } else if (!store.sheetsConfig.webhookUrl) {
+        store.sheetsConfig.webhookUrl = HARDCODED_WEBHOOK_URL;
       }
       return store;
     }
@@ -100,7 +110,8 @@ function loadDB(): DBStore {
       },
     ],
     sheetsConfig: {
-      autoSync: false,
+      autoSync: true,
+      webhookUrl: HARDCODED_WEBHOOK_URL,
     },
   };
 
@@ -307,7 +318,7 @@ async function startServer() {
   app.post('/api/google-sheets/config', (req: Request, res: Response) => {
     const { webhookUrl, spreadsheetId, autoSync } = req.body;
     db.sheetsConfig = {
-      webhookUrl: webhookUrl ? webhookUrl.trim() : undefined,
+      webhookUrl: (webhookUrl && webhookUrl.trim()) ? webhookUrl.trim() : HARDCODED_WEBHOOK_URL,
       spreadsheetId: spreadsheetId ? spreadsheetId.trim() : undefined,
       autoSync: Boolean(autoSync),
       lastSyncTime: db.sheetsConfig.lastSyncTime,

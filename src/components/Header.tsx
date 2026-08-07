@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, LayoutDashboard, Sparkles, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Sparkles, ShieldCheck, Zap } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'register' | 'admin';
@@ -13,64 +13,69 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
-  eventTitle,
-  eventSubtitle,
   registrationCount,
   isAdminAuthorized,
 }) => {
   return (
-    <header className="bg-white border-b border-zinc-200/80 sticky top-0 z-40 backdrop-blur-md bg-white/90">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+    <header className="bg-[#0A0D14]/75 border-b border-white/10 sticky top-0 z-40 backdrop-blur-xl shadow-lg shadow-black/20">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16 gap-3">
           {/* Brand & Event Title */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('register')}>
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Calendar className="w-5 h-5" />
+          <div 
+            className="flex items-center space-x-3 cursor-pointer min-w-0 group" 
+            onClick={() => setActiveTab('register')}
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-pink-500/15 border border-white/15 rounded-xl flex items-center justify-center text-indigo-300 shrink-0 shadow-inner group-hover:border-indigo-400/40 transition-all">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-300 group-hover:text-pink-300 transition-colors" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center space-x-2">
-                <h1 className="text-base sm:text-lg font-bold text-zinc-900 tracking-tight">
-                  {eventTitle}
+                <h1 className="text-sm sm:text-base font-bold font-heading tracking-tight truncate text-white">
+                  TestGrid Certification
                 </h1>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 uppercase tracking-wider">
-                  <ShieldCheck className="w-3 h-3 mr-1 text-green-600" />
-                  Verified
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-white/5 text-indigo-200 border border-white/10 shrink-0 backdrop-blur-md">
+                  <ShieldCheck className="w-3 h-3 mr-1 text-indigo-300" />
+                  CoTester AI
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 font-medium line-clamp-1">
-                {eventSubtitle}
+              <p className="text-[11px] font-medium text-slate-400 truncate">
+                Summit 2026 Session Booking
               </p>
             </div>
           </div>
 
-          {/* Navigation Tabs (Admin visible ONLY when damanjeet@testgrid.io is entered) */}
-          <div className="flex items-center space-x-1.5 p-1 bg-zinc-100 rounded-2xl border border-zinc-200/60">
+          {/* Navigation Tabs */}
+          <div className="flex items-center space-x-1 p-1 rounded-xl border border-white/10 bg-[#121829]/60 backdrop-blur-md shrink-0">
             <button
+              type="button"
               onClick={() => setActiveTab('register')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold text-xs transition-all ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
                 activeTab === 'register'
-                  ? 'bg-white text-blue-600 shadow-sm border border-zinc-200/60'
-                  : 'text-zinc-600 hover:text-zinc-900'
+                  ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 text-pink-300" />
               <span>Register</span>
             </button>
 
             {isAdminAuthorized && (
               <button
+                type="button"
                 onClick={() => setActiveTab('admin')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold text-xs transition-all animate-fadeIn ${
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all cursor-pointer ${
                   activeTab === 'admin'
-                    ? 'bg-white text-blue-600 shadow-sm border border-zinc-200/60'
-                    : 'text-zinc-600 hover:text-zinc-900'
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Admin & Sheets</span>
+                <span className="hidden sm:inline">Admin</span>
                 {registrationCount > 0 && (
                   <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold ${
-                    activeTab === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-200 text-zinc-700'
+                    activeTab === 'admin'
+                      ? 'bg-indigo-950 text-indigo-200'
+                      : 'bg-white/10 text-indigo-300'
                   }`}>
                     {registrationCount}
                   </span>

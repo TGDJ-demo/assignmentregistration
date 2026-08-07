@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TesterType, RegistrationRequest, Registration, DateAvailability } from '../types';
-import { Monitor, Smartphone, Calendar as CalendarIcon, AlertCircle, Loader2, Globe, ShieldAlert, ArrowRight, CheckCircle2, UserCheck, Edit2 } from 'lucide-react';
+import { Monitor, Smartphone, Calendar as CalendarIcon, Loader2, Globe, ShieldAlert, ArrowRight, CheckCircle2, UserCheck, Edit2, Sparkles } from 'lucide-react';
 import { CalendarPicker } from './CalendarPicker';
 import { generateAvailableDates } from '../utils/dateUtils';
 import { CONTINENT_TIMEZONES } from '../utils/timezone';
@@ -16,8 +16,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   onRegistrationSuccess,
   onAdminAuthChange,
 }) => {
-  // Step 1: User Info (Name + Email)
-  // Step 2: Date + Discipline selection
   const [step, setStep] = useState<1 | 2>(1);
 
   const [name, setName] = useState('');
@@ -25,19 +23,15 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [testerType, setTesterType] = useState<TesterType>('web');
   const [selectedDate, setSelectedDate] = useState<string>(availableDates[0] || '');
 
-  // Continental Timezone Converter State (Default IST)
+  // Continental Timezone Converter State
   const [selectedTzId, setSelectedTzId] = useState<string>('ist');
 
   const [availabilities, setAvailabilities] = useState<DateAvailability[]>([]);
-  const [loadingAvail, setLoadingAvail] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [checkingEmail, setCheckingEmail] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Existing registration if duplicate email detected
   const [existingReg, setExistingReg] = useState<Registration | null>(null);
-
-  const activeTzOption = CONTINENT_TIMEZONES.find(t => t.id === selectedTzId) || CONTINENT_TIMEZONES[0];
 
   // Sync default date
   useEffect(() => {
@@ -46,7 +40,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     }
   }, [availableDates]);
 
-  // Load date availabilities
   useEffect(() => {
     fetchAvailabilities();
   }, []);
@@ -78,7 +71,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   };
 
   const fetchAvailabilities = async () => {
-    setLoadingAvail(true);
     try {
       let serverAvails: DateAvailability[] = [];
       let serverRegs: Registration[] = [];
@@ -97,13 +89,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       } catch (_) {}
 
       const allRegs = getCombinedRegistrations(serverRegs);
-
       const dates = availableDates.length > 0 ? availableDates : generateAvailableDates();
 
       const calculatedAvails: DateAvailability[] = dates.map(date => {
         const dateRegs = allRegs.filter(r => r.date === date);
-        const webBooked = dateRegs.filter(r => r.testerType === 'web' || r.testerType === 'Web Platform' || !r.testerType).length;
-        const mobileBooked = dateRegs.filter(r => r.testerType === 'mobile' || r.testerType === 'Mobile Apps').length;
+        const webBooked = dateRegs.filter(r => {
+          const t = String(r.testerType);
+          return t === 'web' || t === 'Web Platform' || !r.testerType;
+        }).length;
+        const mobileBooked = dateRegs.filter(r => {
+          const t = String(r.testerType);
+          return t === 'mobile' || t === 'Mobile Apps';
+        }).length;
 
         const serverMatch = serverAvails.find(a => a.date === date);
         const finalWebBooked = Math.max(webBooked, serverMatch ? serverMatch.webBooked : 0);
@@ -121,12 +118,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setAvailabilities(calculatedAvails);
     } catch (err) {
       console.error('Failed to load availabilities:', err);
-    } finally {
-      setLoadingAvail(false);
     }
   };
 
-  // Step 1 -> Step 2 transition
   const handleNextStep = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -144,11 +138,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       return;
     }
 
-    // Check if admin email "damanjeet@testgrid.io"
     const isAdmin = cleanEmail === 'damanjeet@testgrid.io';
     onAdminAuthChange(isAdmin);
 
-    // Check if this email is already registered
     setCheckingEmail(true);
     try {
       const res = await fetch(`/api/check-email?email=${encodeURIComponent(cleanEmail)}`);
@@ -156,7 +148,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         const data = await res.json();
         if (data.registered && data.existingRegistration) {
           setExistingReg(data.existingRegistration);
-          setErrorMessage(`You have already registered for a session with this email address (${cleanEmail}).`);
+          setErrorMessage(`You have already registered with this email address (${cleanEmail}).`);
           setCheckingEmail(false);
           return;
         }
@@ -167,12 +159,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       setCheckingEmail(false);
     }
 
-    // Advance to Step 2
     setStep(2);
     fetchAvailabilities();
   };
 
-  // Step 2 Submission: Confirm and Lock Session
   const handleSubmitRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -204,11 +194,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         data = await res.json();
       } else {
         const text = await res.text();
-        try {
-          data = JSON.parse(text);
-        } catch (_) {
-          console.warn('Server non-JSON response:', text);
-        }
+        try { data = JSON.parse(text); } catch (_) {}
       }
 
       if (!res.ok) {
@@ -223,7 +209,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           return;
         }
 
-        // Fallback for static hosting / serverless non-JSON response: Generate ticket pass cleanly
         const ticketCode = `TKT-${Math.floor(1000 + Math.random() * 9000)}-${testerType.toUpperCase()}`;
         const fallbackReg: Registration = {
           id: `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -234,29 +219,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           createdAt: new Date().toISOString(),
           ticketCode,
         };
-
-        // Attempt direct client-side Google Sheets push if webhook is saved in localStorage
-        try {
-          const storedWebhook = localStorage.getItem('sheets_webhook_url');
-          if (storedWebhook) {
-            fetch(storedWebhook, {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'ADD_ROW',
-                data: fallbackReg,
-                id: fallbackReg.id,
-                name: fallbackReg.name,
-                email: fallbackReg.email,
-                testerType: fallbackReg.testerType,
-                date: fallbackReg.date,
-                ticketCode: fallbackReg.ticketCode,
-                createdAt: fallbackReg.createdAt,
-              }),
-            }).catch(() => {});
-          }
-        } catch (_) {}
 
         saveLocalRegistration(fallbackReg);
         onRegistrationSuccess(fallbackReg);
@@ -269,7 +231,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         return;
       }
 
-      // Fallback if res.ok but no registration object returned
       const ticketCode = `TKT-${Math.floor(1000 + Math.random() * 9000)}-${testerType.toUpperCase()}`;
       const fallbackReg: Registration = {
         id: `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -283,8 +244,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       saveLocalRegistration(fallbackReg);
       onRegistrationSuccess(fallbackReg);
     } catch (err: any) {
-      console.error('Submit registration network/server fallback:', err);
-      // Fallback: Generate local pass so attendee is never blocked
+      console.error('Submit registration fallback:', err);
       const ticketCode = `TKT-${Math.floor(1000 + Math.random() * 9000)}-${testerType.toUpperCase()}`;
       const fallbackReg: Registration = {
         id: `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -302,7 +262,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
     }
   };
 
-  // Get current date stats
   const selectedAvail = availabilities.find(a => a.date === selectedDate);
   const webBooked = selectedAvail ? selectedAvail.webBooked : 0;
   const mobileBooked = selectedAvail ? selectedAvail.mobileBooked : 0;
@@ -310,51 +269,51 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const remainingSeats = Math.max(0, 10 - currentCategoryBooked);
 
   return (
-    <div className="w-full max-w-5xl mx-auto bg-white rounded-[32px] sm:rounded-[40px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] border border-zinc-200/80 flex flex-col lg:flex-row overflow-hidden transition-all">
-      {/* Left Info Panel */}
-      <div className="lg:w-[320px] xl:w-[350px] bg-[#1A1A1A] p-8 sm:p-10 text-white flex flex-col justify-between shrink-0">
+    <div className="w-full max-w-3xl mx-auto rounded-2xl bg-[#101728]/70 border border-white/10 backdrop-blur-xl text-slate-100 shadow-2xl flex flex-col md:flex-row overflow-hidden transition-all">
+      {/* Sidebar Panel with subtle frosted glass and soft pink-blue accents */}
+      <div className="md:w-[260px] bg-[#0A0D15]/80 backdrop-blur-md p-5 sm:p-6 flex flex-col justify-between shrink-0 border-b md:border-b-0 md:border-r border-white/10">
         <div>
-          <div className="w-10 h-10 bg-blue-500 rounded-xl mb-6 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-            <CalendarIcon className="w-5 h-5" />
+          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500/20 to-pink-500/20 border border-white/15 rounded-xl mb-3 flex items-center justify-center text-indigo-300">
+            <CalendarIcon className="w-4 h-4 text-indigo-300" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-semibold leading-tight mb-3">
-            QA Certification<br />Summit 2026
+          <h2 className="text-lg sm:text-xl font-bold font-heading text-white tracking-tight leading-tight mb-1">
+            TestGrid CoTester
           </h2>
-          <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed mb-6">
-            Congratulations on taking this step to complete your certification! This assignment will bring you up to speed with best AI practices in QA and testing, accelerating your career growth and strengthening our technical partnership.
+          <div className="flex items-center space-x-1.5 mb-3">
+            <span className="text-indigo-300 text-xs font-semibold">Certification 2026</span>
+            <Sparkles className="w-3 h-3 text-pink-300" />
+          </div>
+          <p className="text-slate-400 text-xs leading-relaxed mb-5">
+            Autonomous AI testing suite training across Web and Mobile platforms.
           </p>
 
-          <div className="space-y-3 pt-4 border-t border-zinc-800">
-            <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Professional Certification Path</span>
+          <div className="space-y-2 pt-3 border-t border-white/10">
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-400 to-pink-400" />
+              <span>Full-Day Pass Included</span>
             </div>
-            <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-              <Globe className="w-3.5 h-3.5 text-blue-400" />
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <Globe className="w-3.5 h-3.5 text-indigo-300" />
               <span>Global Timezone Support</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-              <UserCheck className="w-3.5 h-3.5 text-purple-400" />
-              <span>Web & Mobile Hands-On Access</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-zinc-800 text-[11px] uppercase tracking-widest text-zinc-500 font-semibold flex items-center justify-between">
+        <div className="mt-6 pt-3 border-t border-white/10 text-[11px] uppercase tracking-wider text-slate-400 font-semibold flex items-center justify-between">
           <span>Step {step} of 2</span>
-          <span>{step === 1 ? 'Attendee Info' : 'Pick Date'}</span>
+          <span className="text-pink-300">{step === 1 ? 'Attendee' : 'Date & Platform'}</span>
         </div>
       </div>
 
       {/* Main Dynamic Form */}
-      <div className="flex-1 p-6 sm:p-10 flex flex-col justify-between space-y-6">
-        {/* Error / Already Registered Notice */}
+      <div className="flex-1 p-5 sm:p-6 flex flex-col justify-between space-y-5 bg-[#101728]/50">
+        {/* Error / Notice Banner */}
         {errorMessage && (
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200/90 text-amber-900 rounded-2xl text-xs sm:text-sm shadow-xs">
-              <ShieldAlert className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
-              <div className="space-y-1">
-                <span className="font-bold block">Registration Notice</span>
+          <div className="space-y-2.5">
+            <div className="flex items-start gap-2.5 p-3 rounded-xl text-xs border bg-slate-900/80 border-amber-500/30 text-amber-200 backdrop-blur-md">
+              <ShieldAlert className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-semibold block">Notice</span>
                 <p className="leading-relaxed">{errorMessage}</p>
               </div>
             </div>
@@ -363,28 +322,28 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               <button
                 type="button"
                 onClick={() => onRegistrationSuccess(existingReg)}
-                className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center space-x-2"
+                className="w-full py-2 px-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-xl transition-all shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
               >
-                <span>View Your Existing Reserved Pass ({existingReg.ticketCode})</span>
+                <span>View Reserved Pass ({existingReg.ticketCode})</span>
               </button>
             )}
           </div>
         )}
 
-        {/* STEP 1: Enter Name and Email */}
+        {/* STEP 1 */}
         {step === 1 && (
-          <form onSubmit={handleNextStep} className="space-y-6">
+          <form onSubmit={handleNextStep} className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-zinc-900">Step 1: Enter Attendee Details</h3>
-              <p className="text-xs text-zinc-500">
-                Please enter your full name and work email address to proceed.
+              <h3 className="text-base font-bold text-white font-heading">Attendee Details</h3>
+              <p className="text-xs text-slate-400">
+                Enter your full name and work email to start registration.
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider ml-1">
-                  Full Name <span className="text-blue-500">*</span>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 ml-0.5">
+                  Full Name <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -392,21 +351,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   placeholder="e.g. Jane Cooper"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-zinc-400"
+                  className="w-full px-3.5 py-2.5 bg-[#0A0D15]/80 border border-white/10 text-white rounded-xl text-xs sm:text-sm focus:outline-none focus:border-indigo-400/80 transition-colors placeholder:text-slate-600 shadow-inner"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider ml-1">
-                  Work Email <span className="text-blue-500">*</span>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 ml-0.5">
+                  Work Email <span className="text-pink-400">*</span>
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="e.g. damanjeet@testgrid.io or jane@company.com"
+                  placeholder="e.g. damanjeet@testgrid.io"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-zinc-400"
+                  className="w-full px-3.5 py-2.5 bg-[#0A0D15]/80 border border-white/10 text-white rounded-xl text-xs sm:text-sm focus:outline-none focus:border-indigo-400/80 transition-colors placeholder:text-slate-600 shadow-inner"
                 />
               </div>
             </div>
@@ -414,16 +373,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             <button
               type="submit"
               disabled={checkingEmail}
-              className="w-full bg-[#2563eb] hover:bg-blue-600 text-white py-4 rounded-2xl font-semibold text-sm sm:text-base shadow-lg shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer mt-2"
             >
               {checkingEmail ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-pink-300" />
                   <span>Verifying Email...</span>
                 </>
               ) : (
                 <>
-                  <span>Next: Choose Discipline & Date</span>
+                  <span>Next: Select Date & Platform</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -431,97 +390,82 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </form>
         )}
 
-        {/* STEP 2: Choose Discipline & Date */}
+        {/* STEP 2 */}
         {step === 2 && (
-          <form onSubmit={handleSubmitRegistration} className="space-y-6">
-            {/* Confirmed Attendee Header */}
-            <div className="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl">
-              <div className="flex items-center space-x-2.5">
-                <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
-                  <UserCheck className="w-4 h-4" />
+          <form onSubmit={handleSubmitRegistration} className="space-y-4">
+            <div className="flex items-center justify-between p-2.5 bg-[#0A0D15]/80 border border-white/10 rounded-xl">
+              <div className="flex items-center space-x-2 min-w-0">
+                <div className="p-1.5 bg-gradient-to-br from-indigo-500/20 to-pink-500/20 text-indigo-300 border border-white/10 rounded-lg shrink-0">
+                  <UserCheck className="w-3.5 h-3.5" />
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-zinc-900">{name}</div>
-                  <div className="text-[11px] text-zinc-500 font-mono">{email}</div>
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white truncate">{name}</div>
+                  <div className="text-[11px] font-mono text-indigo-300 truncate">{email}</div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-3 py-1 bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-600 font-semibold text-xs rounded-xl transition-all flex items-center gap-1"
+                className="px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-medium text-xs rounded-lg transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
               >
-                <Edit2 className="w-3 h-3" />
-                <span>Edit Info</span>
+                <Edit2 className="w-3 h-3 text-pink-300" />
+                <span>Edit</span>
               </button>
             </div>
 
-            {/* Discipline Selection (Web vs Mobile) */}
-            <div className="space-y-2">
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider ml-1 block">
-                Choose Access Discipline <span className="text-blue-500">*</span>
+            {/* Discipline Selection */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 ml-0.5 block">
+                Access Discipline <span className="text-pink-400">*</span>
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setTesterType('web')}
-                  className={`flex items-center gap-3 px-4 py-3.5 border-2 rounded-2xl transition-all ${
+                  className={`flex items-center gap-2 p-2.5 border rounded-xl transition-all cursor-pointer ${
                     testerType === 'web'
-                      ? 'border-blue-500 bg-blue-50/50 text-blue-700 shadow-xs'
-                      : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300'
+                      ? 'border-indigo-400/60 bg-gradient-to-r from-indigo-500/20 to-purple-500/10 text-indigo-200 shadow-sm'
+                      : 'border-white/10 bg-[#0A0D15]/60 text-slate-400 hover:border-white/20'
                   }`}
                 >
-                  <div
-                    className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
-                      testerType === 'web'
-                        ? 'border-4 border-blue-500 bg-white'
-                        : 'border-2 border-zinc-300'
-                    }`}
-                  />
-                  <Monitor className="w-4 h-4 text-blue-600" />
-                  <div className="text-left">
-                    <span className="text-xs sm:text-sm font-bold block">Web Platform</span>
-                    <span className="text-[10px] text-zinc-500">Full-Day Desktop Testing</span>
+                  <Monitor className="w-4 h-4 text-indigo-300 shrink-0" />
+                  <div className="text-left min-w-0">
+                    <span className="text-xs font-semibold block truncate text-white">Web Platform</span>
+                    <span className="text-[10px] text-slate-400 block truncate">Desktop Testing</span>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setTesterType('mobile')}
-                  className={`flex items-center gap-3 px-4 py-3.5 border-2 rounded-2xl transition-all ${
+                  className={`flex items-center gap-2 p-2.5 border rounded-xl transition-all cursor-pointer ${
                     testerType === 'mobile'
-                      ? 'border-blue-500 bg-blue-50/50 text-blue-700 shadow-xs'
-                      : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300'
+                      ? 'border-pink-400/60 bg-gradient-to-r from-pink-500/20 to-purple-500/10 text-pink-200 shadow-sm'
+                      : 'border-white/10 bg-[#0A0D15]/60 text-slate-400 hover:border-white/20'
                   }`}
                 >
-                  <div
-                    className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
-                      testerType === 'mobile'
-                        ? 'border-4 border-blue-500 bg-white'
-                        : 'border-2 border-zinc-300'
-                    }`}
-                  />
-                  <Smartphone className="w-4 h-4 text-purple-600" />
-                  <div className="text-left">
-                    <span className="text-xs sm:text-sm font-bold block">Mobile Apps</span>
-                    <span className="text-[10px] text-zinc-500">Full-Day iOS / Android</span>
+                  <Smartphone className="w-4 h-4 text-pink-300 shrink-0" />
+                  <div className="text-left min-w-0">
+                    <span className="text-xs font-semibold block truncate text-white">Mobile Apps</span>
+                    <span className="text-[10px] text-slate-400 block truncate">iOS / Android</span>
                   </div>
                 </button>
               </div>
             </div>
 
             {/* Timezone Reference Converter */}
-            <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-800 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-blue-600" />
-                  Global Timezone Converter
+            <div className="p-2.5 bg-[#0A0D15]/80 border border-white/10 rounded-xl space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-indigo-300" />
+                  Timezone Reference
                 </span>
-                <span className="text-[10px] text-zinc-500 font-medium">All 7 Continents</span>
+                <span className="text-[10px] text-slate-400">Full-Day Access</span>
               </div>
               <select
                 value={selectedTzId}
                 onChange={e => setSelectedTzId(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                className="w-full px-2.5 py-1.5 bg-[#121829] border border-white/10 rounded-lg text-xs text-white focus:outline-none cursor-pointer"
               >
                 {CONTINENT_TIMEZONES.map(tz => (
                   <option key={tz.id} value={tz.id}>
@@ -532,13 +476,13 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             </div>
 
             {/* Calendar Date Picker */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between ml-1">
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
-                  Select Event Date <span className="text-blue-500">*</span>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between ml-0.5 text-xs">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Select Event Date <span className="text-pink-400">*</span>
                 </label>
-                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">
-                  {remainingSeats} slots left for {testerType === 'web' ? 'Web' : 'Mobile'} on {selectedDate}
+                <span className="text-[11px] font-semibold text-indigo-200 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md backdrop-blur-md">
+                  {remainingSeats} seats left ({testerType === 'web' ? 'Web' : 'Mobile'})
                 </span>
               </div>
 
@@ -551,21 +495,21 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               />
             </div>
 
-            {/* Final Action Button: Confirm & Lock My Session */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={submitting || remainingSeats === 0}
-              className="w-full bg-[#2563eb] hover:bg-blue-600 text-white py-4 rounded-2xl font-semibold text-sm sm:text-base shadow-lg shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer mt-2"
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Locking Session & Generating Pass...</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-pink-300" />
+                  <span>Reserving Pass...</span>
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-white" />
-                  <span>Confirm and Lock My Session</span>
+                  <CheckCircle2 className="w-4 h-4 text-pink-300" />
+                  <span>Reserve Certification Pass</span>
                 </>
               )}
             </button>

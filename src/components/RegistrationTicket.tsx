@@ -1,6 +1,6 @@
 import React from 'react';
 import { Registration } from '../types';
-import { CheckCircle2, Calendar, Monitor, Smartphone, Download, User, Mail, QrCode, ArrowLeft, Ticket, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Calendar, Monitor, Smartphone, Download, User, Mail, QrCode, ArrowLeft, Ticket, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface RegistrationTicketProps {
   registration: Registration;
@@ -20,9 +20,9 @@ export const RegistrationTicket: React.FC<RegistrationTicketProps> = ({
       const icsContent = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//Event Registration App//EN',
+        'PRODID:-//TestGrid Registration//EN',
         'BEGIN:VEVENT',
-        `SUMMARY:QA Summit 2026 (${registration.testerType === 'web' ? 'Web Platform' : 'Mobile Apps'})`,
+        `SUMMARY:TestGrid QA Summit 2026 (${registration.testerType === 'web' ? 'Web Platform' : 'Mobile Apps'})`,
         `DESCRIPTION:Registration Ticket: ${registration.ticketCode}\\nParticipant: ${registration.name}\\nRole: ${registration.testerType.toUpperCase()}`,
         `LOCATION:Virtual Tech Hub`,
         `DTSTART:${registration.date.replace(/-/g, '')}T090000Z`,
@@ -34,7 +34,7 @@ export const RegistrationTicket: React.FC<RegistrationTicketProps> = ({
       const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = window.URL.createObjectURL(blob);
-      link.setAttribute('download', `Event_Ticket_${registration.ticketCode}.ics`);
+      link.setAttribute('download', `TestGrid_Pass_${registration.ticketCode}.ics`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -54,62 +54,64 @@ export const RegistrationTicket: React.FC<RegistrationTicketProps> = ({
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      {/* Success Notification & Congratulatory Banner */}
-      <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-3xl space-y-2 text-emerald-900 shadow-sm">
-        <div className="flex items-center space-x-2.5">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          <h3 className="font-bold text-sm sm:text-base">Congratulations on Completing Your Certification Registration!</h3>
+    <div className="max-w-md mx-auto space-y-4 animate-in fade-in duration-300">
+      {/* Congratulatory Banner */}
+      <div className="p-4 rounded-2xl border border-white/15 bg-[#121829]/80 backdrop-blur-xl text-slate-200 shadow-lg relative overflow-hidden">
+        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 w-full" />
+        <div className="flex items-center space-x-2">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-pink-300" />
+          <h3 className="font-bold font-heading text-xs sm:text-sm text-white">Registration Reserved!</h3>
+          <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
         </div>
-        <p className="text-xs text-emerald-800 leading-relaxed pl-7">
-          We are thrilled to partner with you! This assignment will bring you right up to speed with the best AI practices in the QA and software testing world, boosting your skills, strengthening our technical partnership, and giving your career a powerful boost.
+        <p className="text-xs text-slate-300 leading-relaxed mt-1 pl-6">
+          Your official pass for TestGrid CoTester Certification Summit 2026 has been issued.
         </p>
       </div>
 
       {/* Ticket Pass Card */}
-      <div className="bg-white border border-zinc-200/80 rounded-[32px] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.07)] overflow-hidden">
-        {/* Pass Top Header */}
-        <div className="bg-[#1A1A1A] text-white p-6 sm:p-8 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Ticket className="w-4 h-4 text-blue-400" />
-              <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">Official Access Pass</span>
+      <div className="rounded-2xl border border-white/10 bg-[#101728]/70 backdrop-blur-xl text-slate-100 shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="p-5 bg-[#0A0D15]/80 border-b border-white/10 flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-1.5">
+              <Ticket className="w-4 h-4 text-pink-300" />
+              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Access Pass</span>
             </div>
-            <span className="font-mono text-xs bg-zinc-800 border border-zinc-700 text-blue-300 px-3 py-1 rounded-xl font-bold">
-              {registration.ticketCode}
-            </span>
+            <h2 className="text-base font-bold font-heading mt-0.5 text-white">
+              TestGrid CoTester
+            </h2>
           </div>
-
-          <h2 className="text-xl sm:text-2xl font-bold mt-4 text-white">QA & Software Testing Summit</h2>
-          <p className="text-zinc-400 text-xs mt-1">Virtual Tech Hub • Full-Day Event Pass</p>
+          <span className="font-mono text-xs bg-gradient-to-r from-indigo-500/20 to-pink-500/20 border border-indigo-400/30 text-indigo-200 px-3 py-1 rounded-xl font-bold">
+            {registration.ticketCode}
+          </span>
         </div>
 
-        {/* Pass Body */}
-        <div className="p-6 sm:p-8 space-y-6">
-          <div className="grid grid-cols-2 gap-4 pb-6 border-b border-zinc-100">
+        {/* Body Details */}
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3 pb-3 border-b border-white/10">
             <div>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">Attendee</span>
-              <div className="flex items-center space-x-2">
-                <User className="w-4 h-4 text-blue-600" />
-                <span className="font-bold text-zinc-900 text-sm truncate">{registration.name}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Attendee</span>
+              <div className="flex items-center space-x-1.5">
+                <User className="w-3.5 h-3.5 text-indigo-300" />
+                <span className="font-semibold text-xs text-white truncate">{registration.name}</span>
               </div>
-              <div className="flex items-center space-x-1.5 text-xs text-zinc-500 mt-1">
-                <Mail className="w-3.5 h-3.5 text-zinc-400" />
+              <div className="flex items-center space-x-1 text-[11px] mt-0.5 text-slate-400">
+                <Mail className="w-3 h-3 text-slate-400" />
                 <span className="truncate">{registration.email}</span>
               </div>
             </div>
 
             <div>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">Access Discipline</span>
-              <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">Discipline</span>
+              <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl font-semibold text-xs bg-white/5 text-indigo-200 border border-white/10 backdrop-blur-md">
                 {registration.testerType === 'web' ? (
                   <>
-                    <Monitor className="w-3.5 h-3.5" />
+                    <Monitor className="w-3.5 h-3.5 text-indigo-300" />
                     <span>Web Platform</span>
                   </>
                 ) : (
                   <>
-                    <Smartphone className="w-3.5 h-3.5" />
+                    <Smartphone className="w-3.5 h-3.5 text-pink-300" />
                     <span>Mobile Apps</span>
                   </>
                 )}
@@ -117,67 +119,64 @@ export const RegistrationTicket: React.FC<RegistrationTicketProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6 border-b border-zinc-100">
-            <div className="flex items-start space-x-3">
-              <div className="p-2 rounded-xl bg-zinc-100 text-zinc-700 mt-0.5">
-                <Calendar className="w-4 h-4 text-blue-600" />
-              </div>
+          <div className="grid grid-cols-2 gap-3 pb-3 border-b border-white/10">
+            <div className="flex items-start space-x-2">
+              <Calendar className="w-4 h-4 text-indigo-300 mt-0.5" />
               <div>
-                <span className="text-[11px] text-zinc-400 font-medium block">Reserved Event Date</span>
-                <span className="font-bold text-zinc-900 text-xs sm:text-sm">{formatDateLabel(registration.date)}</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Event Date</span>
+                <span className="font-semibold text-xs text-white">{formatDateLabel(registration.date)}</span>
               </div>
             </div>
 
-            <div className="flex items-start space-x-3">
-              <div className="p-2 rounded-xl bg-green-50 text-green-700 mt-0.5">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
+            <div className="flex items-start space-x-2">
+              <ShieldCheck className="w-4 h-4 text-pink-300 mt-0.5" />
               <div>
-                <span className="text-[11px] text-zinc-400 font-medium block">Access Duration</span>
-                <span className="font-bold text-green-700 text-xs sm:text-sm">Full-Day Event Pass</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Duration</span>
+                <span className="font-semibold text-xs text-indigo-200">Full-Day Access</span>
               </div>
             </div>
           </div>
 
-          {/* Verification Footer */}
-          <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-200/80 gap-4">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white rounded-xl border border-zinc-200">
-                <QrCode className="w-8 h-8 text-zinc-800" />
-              </div>
+          {/* Verification Box */}
+          <div className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-[#0A0D15]/80">
+            <div className="flex items-center space-x-2.5">
+              <QrCode className="w-6 h-6 text-pink-300" />
               <div>
-                <span className="text-xs font-bold text-zinc-900 block">Digital Verification</span>
-                <span className="text-[10px] text-zinc-500">Present this pass at event check-in</span>
+                <span className="text-xs font-bold block text-white">Digital Check-in Code</span>
+                <span className="text-[10px] text-slate-400">Present upon session entry</span>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={downloadCalendarFile}
-              className="flex items-center space-x-1.5 px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl transition-all"
+              className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-gradient-to-r from-indigo-500/20 to-pink-500/20 hover:from-indigo-500/30 hover:to-pink-500/30 text-indigo-200 border border-indigo-400/30 transition-colors cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Add to Calendar</span>
+              <Download className="w-3.5 h-3.5 text-pink-300" />
+              <span>Calendar</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Buttons */}
+      <div className="flex gap-2.5">
         <button
+          type="button"
           onClick={onRegisterAnother}
-          className="flex-1 py-3.5 px-4 bg-[#2563eb] hover:bg-blue-600 text-white font-semibold rounded-2xl text-xs sm:text-sm transition-all flex items-center justify-center space-x-2 shadow-md shadow-blue-500/20"
+          className="flex-1 py-2.5 px-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold rounded-xl text-xs sm:text-sm transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Register Another Person</span>
+          <span>Register Another Attendee</span>
         </button>
 
         {isAdminAuthorized && onViewAdmin && (
           <button
+            type="button"
             onClick={onViewAdmin}
-            className="py-3.5 px-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-semibold rounded-2xl text-xs sm:text-sm transition-all border border-zinc-200/60"
+            className="py-2.5 px-3 font-semibold rounded-xl text-xs sm:text-sm bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors cursor-pointer"
           >
-            View Admin Dashboard
+            Admin Panel
           </button>
         )}
       </div>

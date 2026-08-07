@@ -5,7 +5,7 @@ import { RegistrationTicket } from './components/RegistrationTicket';
 import { AdminPanel } from './components/AdminPanel';
 import { EventInfo, Registration } from './types';
 import { generateAvailableDates } from './utils/dateUtils';
-import { Monitor, Smartphone, ShieldCheck, Sparkles, CheckCircle2, PartyPopper, X } from 'lucide-react';
+import { ShieldCheck, PartyPopper, X, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'register' | 'admin'>('register');
@@ -15,7 +15,7 @@ export default function App() {
     title: 'QA & Software Testing Certification Summit 2026',
     subtitle: 'Mastering AI Practices in QA & Automation',
     location: 'Virtual Tech Hub & Certification Portal',
-    description: 'Congratulations on taking this crucial step toward completing your certification! This assignment is designed to help you get up to speed with best AI practices in the QA and testing world, strengthening our partnership and advancing your career. Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
+    description: 'Congratulations on taking this crucial step toward completing your certification! Select your access discipline (Web Platform or Mobile Apps) and pick an available date.',
     availableDates: generateAvailableDates(),
   });
 
@@ -58,7 +58,6 @@ export default function App() {
     fetchRegistrationsCount();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Auto dismiss toast after 7s
     setTimeout(() => {
       setShowSuccessToast(false);
     }, 7000);
@@ -70,31 +69,34 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] text-zinc-900 flex flex-col font-sans antialiased relative">
-      {/* Fancy Celebratory Success Popup / Toast */}
+    <div className="min-h-screen bg-[#0A0D14] text-slate-100 flex flex-col font-sans antialiased relative overflow-x-hidden selection:bg-indigo-500 selection:text-white">
+      {/* Soft Ambient Background Mesh & Glow with subtle Pink and Blue hints */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-6xl h-96 bg-gradient-to-b from-indigo-600/15 via-purple-500/10 to-pink-500/5 pointer-events-none blur-3xl opacity-70 z-0" />
+      <div className="absolute top-20 left-1/4 w-72 h-72 bg-blue-500/10 pointer-events-none blur-3xl rounded-full z-0" />
+      <div className="absolute top-32 right-1/4 w-72 h-72 bg-pink-500/10 pointer-events-none blur-3xl rounded-full z-0" />
+
+      {/* Glassmorphic Success Toast */}
       {showSuccessToast && currentRegistration && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-6 duration-500">
-          <div className="bg-zinc-900 text-white p-4 sm:p-5 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-start space-x-3.5 relative overflow-hidden group">
-            <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 w-full animate-pulse" />
-            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 flex-shrink-0 mt-0.5 animate-bounce">
-              <PartyPopper className="w-6 h-6" />
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-6 duration-300">
+          <div className="p-4 rounded-2xl shadow-2xl border border-white/15 bg-[#121829]/80 backdrop-blur-xl text-white flex items-start space-x-3.5 relative overflow-hidden">
+            <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-400 to-pink-400 w-full" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/20 to-pink-500/20 text-indigo-300 flex-shrink-0 mt-0.5 border border-indigo-400/20">
+              <PartyPopper className="w-5 h-5 text-pink-300" />
             </div>
-            <div className="flex-1 pr-4">
+            <div className="flex-1 pr-2">
               <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-sm sm:text-base text-white">Registration Successful!</span>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                <span className="font-bold text-sm text-white">Registration Reserved</span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gradient-to-r from-indigo-500/20 to-pink-500/20 text-indigo-200 border border-indigo-400/30 uppercase">
                   PASS ISSUED
                 </span>
               </div>
-              <p className="text-xs text-zinc-300 mt-1 leading-relaxed">
-                Welcome <strong className="text-emerald-300">{currentRegistration.name}</strong>! Ticket Code{' '}
-                <strong className="font-mono text-emerald-300">{currentRegistration.ticketCode}</strong> reserved for{' '}
-                {currentRegistration.date} ({currentRegistration.testerType === 'web' ? 'Web Platform' : 'Mobile Apps'}).
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                Welcome <strong className="text-indigo-200">{currentRegistration.name}</strong>! Pass <strong className="font-mono text-pink-200">{currentRegistration.ticketCode}</strong> reserved for {currentRegistration.date}.
               </p>
             </div>
             <button
               onClick={() => setShowSuccessToast(false)}
-              className="text-zinc-400 hover:text-white p-1 rounded-lg transition-colors"
+              className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -113,38 +115,27 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 z-10 relative">
         {activeTab === 'register' ? (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Hero Banner */}
             {!currentRegistration && (
-              <div className="text-center max-w-2xl mx-auto space-y-3">
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white border border-zinc-200/80 text-blue-600 text-xs font-bold shadow-xs">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Full-Day Access • Professional Certification & AI Testing</span>
+              <div className="text-center max-w-lg mx-auto space-y-2.5 pb-2">
+                <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium backdrop-blur-md shadow-xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>TestGrid CoTester</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-pink-300 flex items-center gap-1 font-semibold">
+                    <Sparkles className="w-3 h-3 text-pink-400" />
+                    AI QA Certification
+                  </span>
                 </div>
-                <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900">
+                <h2 className="text-2xl sm:text-3xl font-bold font-heading tracking-tight text-white">
                   Reserve Your Certification Session
                 </h2>
-                <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">
-                  {eventInfo.description}
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  Select your testing discipline and pick an available date for your official certification pass.
                 </p>
-
-                {/* Feature Highlights Pill Bar */}
-                <div className="pt-1 flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-zinc-600">
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
-                    <Monitor className="w-3.5 h-3.5 text-blue-600" /> Web Platform
-                  </span>
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
-                    <Smartphone className="w-3.5 h-3.5 text-purple-600" /> Mobile Apps
-                  </span>
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> AI QA Best Practices
-                  </span>
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-zinc-200/80 shadow-2xs">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Instant Pass Generation
-                  </span>
-                </div>
               </div>
             )}
 
@@ -173,17 +164,24 @@ export default function App() {
       </main>
 
       {/* App Footer */}
-      <footer className="bg-white border-t border-zinc-200/80 py-6 text-center text-xs text-zinc-500 mt-12">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer className="py-5 text-center text-xs border-t border-white/10 bg-[#070A10]/90 backdrop-blur-md text-slate-400 mt-10">
+        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2.5">
           <div className="flex items-center space-x-2">
-            <span className="font-bold text-zinc-800">Event Registration & Session Booking</span>
+            <span className="font-semibold text-slate-300">
+              TestGrid Certification Portal
+            </span>
             <span>•</span>
-            <span>Official Portal</span>
+            <span className="text-indigo-300 font-medium flex items-center gap-1">
+              CoTester AI
+            </span>
           </div>
           <div className="flex items-center space-x-4">
             <button
+              type="button"
               onClick={() => setActiveTab('register')}
-              className="hover:text-blue-600 transition-colors"
+              className={`hover:text-indigo-300 transition-colors cursor-pointer ${
+                activeTab === 'register' ? 'text-indigo-300 font-semibold' : ''
+              }`}
             >
               Registration
             </button>
@@ -191,10 +189,13 @@ export default function App() {
               <>
                 <span>•</span>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('admin')}
-                  className="hover:text-blue-600 transition-colors"
+                  className={`hover:text-indigo-300 transition-colors cursor-pointer ${
+                    activeTab === 'admin' ? 'text-indigo-300 font-semibold' : ''
+                  }`}
                 >
-                  Google Sheets & Admin
+                  Admin Portal
                 </button>
               </>
             )}
