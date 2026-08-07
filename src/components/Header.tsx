@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setActiveTab('register')}
           >
             {/* TestGrid Logo */}
-            <div className="w-40 h-20 sm:w-40 sm:h-20 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-white/5 flex items-center justify-center group-hover:border-indigo-400/40 transition-all">
+            <div className="w-40 h-15 sm:w-40 sm:h-15 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-white/5 flex items-center justify-center group-hover:border-indigo-400/40 transition-all">
               <img 
                 src="/testgrid-logo.svg"
                 alt="TestGrid"
