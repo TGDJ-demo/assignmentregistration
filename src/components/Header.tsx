@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Sparkles, ShieldCheck, Zap } from 'lucide-react';
+import { LayoutDashboard, Sparkles, ShieldCheck } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'register' | 'admin';
@@ -20,14 +20,21 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-[#0A0D14]/75 border-b border-white/10 sticky top-0 z-40 backdrop-blur-xl shadow-lg shadow-black/20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 gap-3">
+          
           {/* Brand & Event Title */}
           <div 
             className="flex items-center space-x-3 cursor-pointer min-w-0 group" 
             onClick={() => setActiveTab('register')}
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-pink-500/15 border border-white/15 rounded-xl flex items-center justify-center text-indigo-300 shrink-0 shadow-inner group-hover:border-indigo-400/40 transition-all">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-300 group-hover:text-pink-300 transition-colors" />
+            {/* TestGrid Logo */}
+            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl overflow-hidden border border-white/15 bg-white/5 flex items-center justify-center group-hover:border-indigo-400/40 transition-all">
+              <img 
+                src="/testgrid-logo.svg"
+                alt="TestGrid"
+                className="w-full h-full object-contain p-1.5"
+              />
             </div>
+
             <div className="min-w-0">
               <div className="flex items-center space-x-2">
                 <h1 className="text-sm sm:text-base font-bold font-heading tracking-tight truncate text-white">
